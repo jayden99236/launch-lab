@@ -1,0 +1,381 @@
+<title>Launch Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a lab notebook on graph paper. Instrument bar on top, stations grouped by unit, lessons as a readable column, run view = simulation bench | problem sheet. */
+:root{
+  --paper:#eef2f6; --grid:rgba(31,79,140,.075); --card:#ffffff; --sunk:#f5f8fb;
+  --ink:#122033; --muted:#566579; --line:#d3dce6;
+  --accent:#e2560b; --accent-ink:#ffffff; --blue:#1d5fc2;
+  --good:#23863a; --bad:#c62a2a; --warn:#a96c0e;
+  --scene-bg:#e5ecf3; --scene-grid:rgba(29,95,194,.09); --water:rgba(29,95,194,.22);
+  --f-display:"Chakra Petch", "Bahnschrift", "Segoe UI", sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0d131a; --grid:rgba(120,170,235,.055); --card:#141c26; --sunk:#10171f;
+  --ink:#e4ebf3; --muted:#91a0b2; --line:#253242;
+  --accent:#ff7b35; --accent-ink:#1a0c03; --blue:#72a9ff;
+  --good:#52c96b; --bad:#ff6d6d; --warn:#f0b54a;
+  --scene-bg:#0a1118; --scene-grid:rgba(114,169,255,.08); --water:rgba(114,169,255,.2); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#0d131a; --grid:rgba(120,170,235,.055); --card:#141c26; --sunk:#10171f;
+  --ink:#e4ebf3; --muted:#91a0b2; --line:#253242;
+  --accent:#ff7b35; --accent-ink:#1a0c03; --blue:#72a9ff;
+  --good:#52c96b; --bad:#ff6d6d; --warn:#f0b54a;
+  --scene-bg:#0a1118; --scene-grid:rgba(114,169,255,.08); --water:rgba(114,169,255,.2); color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px; min-height:100vh}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:.01em}
+.label{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--card)}
+.bar-in{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.02em;background:none;border:0;padding:0}
+.brand svg{flex:none}
+.meters{display:flex;gap:18px;align-items:center;margin-left:auto;flex-wrap:wrap}
+.meter{display:flex;flex-direction:column;gap:2px;min-width:0}
+.meter b{font-family:var(--f-mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+.xp{width:170px;max-width:40vw}
+.xpbar{height:6px;background:var(--sunk);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.xpbar i{display:block;height:100%;background:var(--accent);width:0;transition:width .6s ease}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;padding:10px 16px;border:1px solid var(--line);background:var(--card);font-weight:600;transition:transform .1s, background .15s,border-color .15s}
+.btn:hover:not(:disabled){border-color:var(--ink)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover:not(:disabled){filter:brightness(1.06);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.small{padding:6px 11px;font-size:13.5px}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:end;padding-block:34px 22px}
+.hero h1{font-size:clamp(30px,5vw,48px);line-height:1.04;font-weight:700}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{color:var(--muted);max-width:60ch;margin:12px 0 0}
+.next-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px}
+.next-card .row{display:flex;gap:10px;flex-wrap:wrap}
+.section-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:26px 0 12px;flex-wrap:wrap}
+.section-h h2{font-size:21px}
+.unit-h{display:flex;align-items:baseline;gap:12px;margin:22px 0 10px;flex-wrap:wrap}
+.unit-h h3{font-size:17px}
+.unit-h .note{flex:1}
+.stations{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:12px}
+.station{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 14px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.station.locked{background:var(--sunk);color:var(--muted)}
+.station .num{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.station h3{font-size:19px}
+.station .formula{font-family:var(--f-mono);font-size:13px;color:var(--blue)}
+.station.locked .formula{color:var(--muted)}
+.station .blurb{font-size:13.5px;color:var(--muted);margin:0;min-height:3em}
+.station .btns{display:flex;gap:8px;margin-top:auto}
+.station .btns .btn{flex:1}
+.gauge{position:relative;height:8px;border-radius:4px;background:var(--sunk);border:1px solid var(--line)}
+.gauge i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--blue)}
+.gauge.m i{background:var(--good)}
+.gauge .tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--muted);opacity:.55}
+.gline{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:11.5px;letter-spacing:.04em;padding:3px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent)}
+.chip.blue{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 45%,transparent)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.chip.acc{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.spark{width:100%;height:30px;display:block}
+.lower{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.badges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.badge{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px dashed var(--line);border-radius:8px;min-width:0}
+.badge .medal{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line);font-family:var(--f-display);font-weight:700;font-size:13px;color:var(--muted)}
+.badge.got{border-style:solid}
+.badge.got .medal{border-color:var(--accent);color:var(--accent)}
+.badge b{display:block;font-size:13.5px}
+.badge span{font-size:12px;color:var(--muted)}
+.how p{margin:0 0 10px;color:var(--muted);font-size:14px;max-width:62ch}
+.how strong{color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--sunk)}
+.stat b{display:block;font-family:var(--f-mono);font-size:19px;font-weight:500}
+.reset-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* Welcome / grade placement */
+.welcome{max-width:880px;margin:0 auto;padding-block:36px 0;display:flex;flex-direction:column;gap:18px}
+.welcome h1{font-size:clamp(30px,5vw,46px);line-height:1.05}
+.welcome .lead{color:var(--muted);margin:0;max-width:62ch;font-size:16px}
+.grades{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.grade{display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);min-width:0}
+.grade:hover{border-color:var(--ink)}
+.grade b{font-family:var(--f-display);font-size:26px;line-height:1}
+.grade b small{font-size:13px;font-family:var(--f-mono);color:var(--muted);font-weight:400;margin-right:4px}
+.grade span{font-size:13px;color:var(--muted)}
+.grade[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.grade[aria-checked="true"] b{color:var(--accent)}
+.placement{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.placement h3{font-size:18px}
+.pl-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 24px}
+.pl-row{display:grid;grid-template-columns:130px minmax(0,1fr) 34px;gap:10px;align-items:center;font-size:13.5px}
+.pl-row.off{color:var(--muted)}
+.pl-row .mono{text-align:right}
+@media (max-width:820px){.grades{grid-template-columns:repeat(3,minmax(0,1fr))}.pl-rows{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:460px){.grades{grid-template-columns:repeat(2,minmax(0,1fr))}.pl-row{grid-template-columns:110px minmax(0,1fr) 34px}}
+
+/* Lessons */
+.lesson-page{max-width:780px;margin:0 auto;padding-block:26px 0;display:flex;flex-direction:column;gap:18px}
+.lesson{display:flex;flex-direction:column;gap:18px}
+.lesson h2{font-size:clamp(26px,4vw,36px)}
+.lesson .intro{font-size:17px;color:var(--muted);margin:0;max-width:65ch}
+.lesson section h3{font-size:18px;margin-bottom:6px}
+.lesson section p{margin:0;max-width:68ch}
+.lesson i.v{font-family:var(--f-mono);font-style:normal;color:var(--blue)}
+.eqs{width:100%;border-collapse:collapse;font-size:14px}
+.eqs td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+.eqs td:first-child{font-family:var(--f-mono);color:var(--blue);white-space:nowrap}
+.eqs-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.eqs-wrap .label{display:block;padding:10px 10px 4px}
+.example{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.example ol{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.example li{font-family:var(--f-mono);font-size:13.5px}
+.traps{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.traps li::marker{color:var(--bad)}
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.sheet-grid .eqs-wrap h3{font-size:16px;padding:12px 10px 0}
+dialog#notes{width:min(780px,calc(100vw - 32px));max-height:86vh;padding:0;border:1px solid var(--line);border-radius:var(--r);background:var(--paper);color:var(--ink)}
+dialog#notes::backdrop{background:rgba(5,10,18,.55)}
+.notes-head{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line);z-index:1}
+.notes-body{padding:18px}
+
+/* Run */
+.runhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:20px 14px}
+.runhead h2{font-size:24px}
+.dots{display:flex;gap:6px}
+.dots i{width:22px;height:8px;border-radius:3px;background:var(--line)}
+.dots i.cur{background:var(--ink)}
+.dots i.ok{background:var(--good)}
+.dots i.part{background:var(--warn)}
+.dots i.no{background:var(--bad)}
+.runhead .spacer{flex:1}
+.rungrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+.bench{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bench canvas{display:block;width:100%;aspect-ratio:16/10;max-width:100%;background:var(--scene-bg)}
+.bench-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.diffline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.prompt{font-size:17px;line-height:1.55;margin:0}
+.prompt b{font-family:var(--f-mono);font-weight:500;color:var(--blue)}
+.ansrow{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.ansrow input{flex:1 1 140px;min-width:0;font-family:var(--f-mono);font-size:18px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunk);color:var(--ink)}
+.ansrow input:focus{border-color:var(--blue);outline:none}
+.unit{display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;font-family:var(--f-mono);color:var(--muted);background:var(--sunk)}
+.choices{display:grid;gap:8px}
+.choice{text-align:left;padding:12px 14px;border-radius:8px;border:1px solid var(--line);background:var(--sunk);display:flex;gap:10px;align-items:flex-start}
+.choice:hover:not(:disabled){border-color:var(--ink)}
+.choice .k{font-family:var(--f-mono);color:var(--muted);flex:none}
+.choice.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--sunk))}
+.choice.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--sunk))}
+.choice:disabled{cursor:default}
+.ctrl{display:grid;grid-template-columns:72px minmax(0,1fr) 84px;gap:10px;align-items:center}
+.ctrl input[type=range]{width:100%;accent-color:var(--accent)}
+.ctrl input[type=number]{width:100%;font-family:var(--f-mono);padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--sunk);color:var(--ink)}
+.ctrl.fixed{opacity:.6}
+.shots{display:flex;gap:6px;align-items:center}
+.shots i{width:12px;height:12px;border-radius:50%;border:2px solid var(--accent)}
+.shots i.used{background:transparent;border-color:var(--line)}
+.shots i.hit{background:var(--good);border-color:var(--good)}
+.hint{border-left:3px solid var(--warn);background:var(--sunk);padding:10px 12px;border-radius:0 8px 8px 0;font-size:14px}
+.hint .label{color:var(--warn)}
+.fb{border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--sunk)}
+.fb.ok{border-color:color-mix(in srgb,var(--good) 55%,var(--line))}
+.fb.no{border-color:color-mix(in srgb,var(--bad) 55%,var(--line))}
+.fb.part{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
+.fb h3{font-size:18px}
+.fb.ok h3{color:var(--good)} .fb.no h3{color:var(--bad)} .fb.part h3{color:var(--warn)}
+.sol{font-family:var(--f-mono);font-size:13.5px;line-height:1.7;overflow-x:auto}
+.fbmeta{display:flex;gap:8px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.note{font-size:12.5px;color:var(--muted)}
+.inline-msg{font-size:14px;color:var(--muted)}
+
+.summary{max-width:720px;margin:34px auto 0;display:flex;flex-direction:column;gap:16px}
+.summary h2{font-size:32px}
+.sumgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.skillrows{display:flex;flex-direction:column;gap:10px}
+.skillrow{display:grid;grid-template-columns:130px minmax(0,1fr) 120px;gap:12px;align-items:center}
+.skillrow .mono{text-align:right}
+.up{color:var(--good)} .down{color:var(--bad)}
+
+.toasts{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;z-index:20;max-width:min(340px,calc(100vw - 32px))}
+.toast{background:var(--ink);color:var(--paper);padding:12px 14px;border-radius:8px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);animation:pop .3s ease}
+.toast b{font-family:var(--f-display);display:block;font-size:15px}
+@keyframes pop{from{transform:translateY(8px);opacity:.3}to{transform:none;opacity:1}}
+
+@media (max-width:820px){.hero,.lower,.rungrid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.meters{gap:12px;margin-left:0}.xp{width:130px}.sumgrid,.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.skillrow{grid-template-columns:96px minmax(0,1fr) 100px}.ctrl{grid-template-columns:60px minmax(0,1fr) 72px}.badges{grid-template-columns:minmax(0,1fr)}.sheet-grid{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <button class="brand" id="brand" aria-label="Back to the station map">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><path d="M3 24 Q 12 -2 25 22" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="3 3.2"/><circle cx="25" cy="22" r="3" fill="var(--blue)"/><rect x="1" y="24" width="8" height="3" rx="1" fill="var(--ink)"/></svg>
+      Launch Lab
+    </button>
+    <div class="meters">
+      <div class="meter"><span class="label">Level</span><b id="m-level">1</b></div>
+      <div class="meter xp"><span class="label" id="m-rank">Lab Assistant</span><div class="xpbar"><i id="m-xpfill"></i></div><span class="note mono" id="m-xptext">0 / 80 XP</span></div>
+      <div class="meter"><span class="label">Streak</span><b id="m-streak">0</b></div>
+      <div class="meter"><span class="label">Badges</span><b id="m-badges">0</b></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="welcome" hidden>
+    <div class="welcome">
+      <span class="label">Welcome to Launch Lab</span>
+      <h1>Which grade are you in?</h1>
+      <p class="lead">We’ll start every station at the level a typical student in your grade can handle, and open the topics you’ve likely covered. Your first few answers fine-tune it quickly, so don’t worry about picking exactly right.</p>
+      <div class="grades" id="grades" role="radiogroup" aria-label="Grade"></div>
+      <div class="placement" id="placement" hidden>
+        <div class="gline"><h3 id="pl-title">Grade 10 placement</h3><span class="chip blue" id="pl-open"></span></div>
+        <div class="pl-rows" id="pl-rows"></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-place" disabled>Choose a grade</button>
+        <button class="btn ghost" id="btn-scratch">Start from the beginning instead</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="home" hidden>
+    <div class="hero">
+      <div>
+        <span class="label" id="hero-label">Physics course</span>
+        <h1>Learn physics by <em>launching</em>, pushing and crashing things.</h1>
+        <p>Read a short lesson, then practise with problems generated fresh for you. Difficulty follows your skill at every station. Every answer comes with a worked solution and a simulation, and the problems you miss come back later for review.</p>
+      </div>
+      <div class="next-card">
+        <span class="label">Up next</span>
+        <div id="next-text"></div>
+        <div class="row">
+          <button class="btn primary" id="btn-continue">Start</button>
+          <button class="btn" id="btn-mix">Adaptive practice</button>
+          <button class="btn" id="btn-review">Review mistakes</button>
+        </div>
+        <span class="note" id="mix-note"></span>
+      </div>
+    </div>
+
+    <div class="section-h"><h2>Stations</h2><div class="actions"><span class="label">Skill 4 unlocks what follows · 7 is mastery</span><button class="btn small" id="btn-sheet">Formula sheet</button></div></div>
+    <div id="units"></div>
+
+    <div class="lower">
+      <div>
+        <div class="section-h"><h2>Badges</h2><span class="label" id="badge-count"></span></div>
+        <div class="badges" id="badges"></div>
+      </div>
+      <div>
+        <div class="section-h"><h2>How difficulty adapts</h2></div>
+        <div class="panel how">
+          <p>Each station keeps a <strong>skill rating from 1 to 10</strong>. Problems are pitched close to it, aiming for about <strong>7 right out of 10</strong>, which is where people learn fastest.</p>
+          <p>Beating a hard problem raises your rating a lot; missing an easy one lowers it. Two misses in a row bring an easier problem, and three correct answers in a row bring a stretch problem.</p>
+          <p>Missed problems go into your <strong>review queue</strong>. Get one right later and it leaves the queue. Using a hint caps that problem's credit at 60%.</p>
+          <div class="stats">
+            <div class="stat"><span class="label">Answered</span><b id="st-n">0</b></div>
+            <div class="stat"><span class="label">Accuracy</span><b id="st-acc">—</b></div>
+            <div class="stat"><span class="label">Best streak</span><b id="st-best">0</b></div>
+          </div>
+          <p class="note" id="placed-note" style="margin:0 0 10px"></p>
+          <div class="reset-row" id="reset-row"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="learn" hidden>
+    <div class="lesson-page">
+      <div class="actions"><button class="btn small ghost" id="learn-back">← Stations</button></div>
+      <div id="lesson"></div>
+      <div class="actions"><button class="btn primary" id="learn-go">Practise this station</button><button class="btn" id="learn-back2">Back to stations</button></div>
+    </div>
+  </section>
+
+  <section id="sheet" hidden>
+    <div class="section-h" style="margin-top:26px"><h2>Formula sheet</h2><button class="btn small ghost" id="sheet-back">← Stations</button></div>
+    <div class="sheet-grid" id="sheet-grid"></div>
+  </section>
+
+  <section id="run" hidden>
+    <div class="runhead">
+      <div>
+        <span class="label" id="run-mode">Station run</span>
+        <h2 id="run-topic">Kinematics</h2>
+      </div>
+      <div class="dots" id="dots" aria-label="Run progress"></div>
+      <div class="spacer"></div>
+      <span class="chip blue mono" id="run-skill">Skill 1.5</span>
+      <button class="btn small" id="btn-notes">Lesson notes</button>
+      <button class="btn small ghost" id="btn-quit">Leave run</button>
+    </div>
+    <div class="rungrid">
+      <div class="bench">
+        <canvas id="scene" aria-label="Physics simulation"></canvas>
+        <div class="bench-foot">
+          <span class="label" id="scene-cap">Simulation bench</span>
+          <button class="btn small" id="btn-replay" hidden>Replay simulation</button>
+        </div>
+      </div>
+      <div class="sheet">
+        <div class="diffline">
+          <span class="chip acc" id="diff-chip">Difficulty 2.0</span>
+          <span class="note" id="diff-why"></span>
+        </div>
+        <p class="prompt" id="prompt"></p>
+        <div id="answer-box"></div>
+        <div class="hint" id="hint" hidden><span class="label">Hint</span><div id="hint-text"></div></div>
+        <div class="actions" id="pre-actions">
+          <button class="btn small ghost" id="btn-hint">Show hint</button>
+          <span class="note" id="hint-note">Using a hint caps this problem at 60% credit.</span>
+        </div>
+        <div class="fb" id="fb" hidden></div>
+        <div class="actions"><button class="btn primary" id="btn-next" hidden>Next problem</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="summary" hidden>
+    <div class="summary">
+      <span class="label" id="sum-label">Run complete</span>
+      <h2 id="sum-title">Nice work</h2>
+      <div class="sumgrid">
+        <div class="stat"><span class="label">Score</span><b id="sum-score">0/6</b></div>
+        <div class="stat"><span class="label">XP earned</span><b id="sum-xp">0</b></div>
+        <div class="stat"><span class="label">Best streak</span><b id="sum-streak">0</b></div>
+      </div>
+      <div class="panel">
+        <span class="label">Skill change</span>
+        <div class="skillrows" id="sum-skills" style="margin-top:10px"></div>
+      </div>
+      <div id="sum-extra"></div>
+      <div class="actions">
+        <button class="btn primary" id="btn-again">Another run</button>
+        <button class="btn" id="btn-map">Back to stations</button>
+      </div>
+    </div>
+  </section>
+</main>
+<dialog id="notes" aria-label="Lesson notes">
+  <div class="notes-head"><span class="label" id="notes-title">Lesson notes</span><button class="btn small" id="notes-close">Close</button></div>
+  <div class="notes-body" id="notes-body"></div>
+</dialog>
+<div class="toasts" id="toasts" aria-live="polite"></div>

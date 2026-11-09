@@ -1,0 +1,41 @@
+plugins { id 'com.android.application' }
+
+// Release signing reads a properties file kept outside the repository.
+// Point to it with -PsigningProps=path or the LAUNCHLAB_SIGNING env var.
+def signingPropsPath = project.findProperty('signingProps') ?: System.getenv('LAUNCHLAB_SIGNING') ?: 'D:/DevTools/keystores/launchlab-signing.properties'
+def signingProps = new Properties()
+def signingFile = file(signingPropsPath)
+if (signingFile.exists()) signingFile.withInputStream { signingProps.load(it) }
+
+android {
+    namespace 'com.launchlab.game'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.launchlab.game'
+        minSdk 26
+        targetSdk 34
+        versionCode 2
+        versionName '1.1'
+    }
+    signingConfigs {
+        release {
+            if (signingProps['storeFile']) {
+                storeFile file(signingProps['storeFile'])
+                storePassword signingProps['storePassword']
+                keyAlias signingProps['keyAlias']
+                keyPassword signingProps['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingProps['storeFile']) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

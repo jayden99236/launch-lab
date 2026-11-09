@@ -1,0 +1,15 @@
+# Android build output
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+# Release files and signing secrets never go in the repo
+*.apk
+*.aab
+*.jks
+*.keystore
+*signing.properties
+# Intermediate single-file build (docs/index.html is the published page)
+launch-lab.html
