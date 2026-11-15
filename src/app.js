@@ -2,7 +2,7 @@
 const UNLOCK = 4, MASTER = 7, RUN_LEN = 6, REVIEW_MAX = 40;
 const KEY = 'launchlab.v1';
 const freshTopic = () => ({ r: 1.5, n: 0, c: 0, hist: [1.5] });
-function fresh() { return { grade: null, xp: 0, streak: 0, best: 0, runs: 0, n: 0, c: 0, fixed: 0, badges: {}, read: {}, review: [], topics: Object.fromEntries(TOPICS.map(t => [t.id, freshTopic()])) }; }
+function fresh() { return { grade: null, adaptive: true, xp: 0, streak: 0, best: 0, runs: 0, n: 0, c: 0, fixed: 0, badges: {}, read: {}, review: [], topics: Object.fromEntries(TOPICS.map(t => [t.id, freshTopic()])) }; }
 function load() {
   try {
     const j = JSON.parse(localStorage.getItem(KEY));
@@ -10,6 +10,7 @@ function load() {
       const f = fresh(); Object.assign(f, j);
       for (const t of TOPICS) if (!f.topics[t.id]) f.topics[t.id] = freshTopic();
       f.read = f.read || {}; f.review = Array.isArray(f.review) ? f.review : []; f.fixed = f.fixed || 0;
+      if (typeof f.adaptive !== 'boolean') f.adaptive = true;
       // Saves from before grade placement existed: keep their progress and skip the picker if they've played.
       if (f.grade == null && (f.n > 0 || Object.keys(f.read).length)) f.grade = 'existing';
       return f;
@@ -51,7 +52,9 @@ function checkBadges() {
   if (S.best >= 5) award('streak5');
   if (S.best >= 12) award('streak12');
   if (S.fixed >= 10) award('fixer');
-  const m = id => S.topics[id].r >= MASTER;
+  // Mastery badges must be earned: adaptive difficulty on and at least 5 correct answers at the station,
+  // so setting a skill by hand in Settings doesn't award them.
+  const m = id => S.adaptive && S.topics[id].r >= MASTER && S.topics[id].c >= 5;
   if (TOPICS.some(t => m(t.id))) award('master');
   if (UNITS.some(u => TOPICS.filter(t => t.unit === u.id).every(t => m(t.id)))) award('unit');
   if (TOPICS.every(t => m(t.id))) award('grand');
@@ -70,13 +73,14 @@ function toast(title, body) {
 const expected = (d, r) => 1 / (1 + Math.exp((d - r) * 0.9 - 0.85));
 function rate(tid, d, score) {
   const T = S.topics[tid], before = T.r, K = T.n < 8 ? 1.15 : 0.75;
-  T.r = clamp(T.r + K * (score - expected(d, T.r)), 1, 10);
+  if (S.adaptive) T.r = clamp(T.r + K * (score - expected(d, T.r)), 1, 10);
   T.n++; if (score >= 0.6) T.c++;
   T.hist.push(+T.r.toFixed(2)); if (T.hist.length > 30) T.hist.shift();
   return T.r - before;
 }
 function chooseDifficulty(tid) {
   const r = S.topics[tid].r;
+  if (!S.adaptive) return { d: clamp(r + (R() * 0.6 - 0.3), 1, 10), why: 'Fixed level: adaptive difficulty is off in Settings.' };
   let d = r + (R() * 1.3 - 0.45), why = 'Pitched near your current skill.';
   const last = RUN.res.filter(x => x.tid === tid), l2 = last.slice(-2), l3 = last.slice(-3);
   if (l2.length === 2 && l2.every(x => x.score < 0.6)) { d -= 0.9; why = 'Easing off after two misses.'; }
@@ -92,7 +96,67 @@ function pickMixTopic() {
 }
 
 /* ---------- views ---------- */
-const VIEWS = ['welcome', 'home', 'learn', 'sheet', 'run', 'summary'];
+const VIEWS = ['welcome', 'home', 'settings', 'learn', 'sheet', 'run', 'summary'];
+
+/* ---------- settings: manual skill levels ---------- */
+let DRAFT = null;
+const snap = v => Math.round(clamp(v, 1, 10) * 2) / 2;
+function openSettings() {
+  cancelAnimationFrame(SC.raf); RUN = null;
+  DRAFT = Object.fromEntries(TOPICS.map(t => [t.id, +S.topics[t.id].r.toFixed(1)]));
+  $('#sk-presets').innerHTML = GRADES.map(x => `<button class="btn small" data-preset="${x.g}">Grade ${x.g}</button>`).join('') + '<button class="btn small ghost" data-preset="0">Beginner</button>';
+  $('#sk-presets').querySelectorAll('[data-preset]').forEach(b => b.onclick = () => {
+    const g = +b.dataset.preset, v = g ? gradeVals(g) : null;
+    TOPICS.forEach(t => DRAFT[t.id] = g ? v[t.id] : 1.5);
+    renderSkillRows();
+  });
+  $('#sk-list').innerHTML = TOPICS.map(t => `<div class="skill-row" data-row="${t.id}">
+      <label class="nm" for="sk-${t.id}">${t.name}<small>${UNITS.find(u => u.id === t.unit).name}</small></label>
+      <input type="range" id="sk-${t.id}" min="1" max="10" step="0.5" data-sk="${t.id}" aria-describedby="st-${t.id}">
+      <input type="number" id="skn-${t.id}" min="1" max="10" step="0.5" data-skn="${t.id}" aria-label="${t.name} skill">
+      <span class="st chip" id="st-${t.id}"></span>
+    </div>`).join('');
+  $('#sk-list').querySelectorAll('[data-sk]').forEach(i => i.oninput = () => { DRAFT[i.dataset.sk] = +i.value; renderSkillRows(i.dataset.sk); });
+  $('#sk-list').querySelectorAll('[data-skn]').forEach(i => i.onchange = () => { const v = parseFloat(i.value); if (isFinite(v)) DRAFT[i.dataset.skn] = snap(v); renderSkillRows(); });
+  $('#adaptive-toggle').checked = S.adaptive;
+  renderAdaptiveDesc();
+  $('#placed-note').textContent = typeof S.grade === 'number' ? `You started at Grade ${S.grade} level.` : S.grade === 'scratch' ? 'You started from the beginning.' : '';
+  resetUI(false);
+  renderSkillRows();
+  renderHeader();
+  show('settings');
+}
+function renderSkillRows(skip) {
+  let dirty = 0;
+  TOPICS.forEach(t => {
+    const v = DRAFT[t.id], cur = +S.topics[t.id].r.toFixed(1), changed = Math.abs(v - cur) > 0.01;
+    if (changed) dirty++;
+    if (t.id !== skip) $('#sk-' + t.id).value = v;
+    $('#skn-' + t.id).value = v;
+    $('[data-row="' + t.id + '"]').classList.toggle('changed', changed);
+    const open = t.req.every(r => DRAFT[r] >= UNLOCK), st = $('#st-' + t.id);
+    st.textContent = !open ? 'Locked' : v >= MASTER ? 'Challenge' : v >= 3.5 ? 'Core' : 'Warm-up';
+    st.className = 'st chip' + (!open ? '' : v >= MASTER ? ' acc' : v >= 3.5 ? ' blue' : ' good');
+  });
+  $('#sk-save').disabled = $('#sk-discard').disabled = !dirty;
+  $('#sk-dirty').textContent = dirty ? `${dirty} unsaved change${dirty > 1 ? 's' : ''}` : 'Saved';
+  $('#sk-dirty').className = 'chip' + (dirty ? ' warn' : '');
+}
+function saveSkills() {
+  let n = 0;
+  TOPICS.forEach(t => {
+    const T = S.topics[t.id], v = DRAFT[t.id];
+    if (Math.abs(v - +T.r.toFixed(1)) > 0.01) { T.r = v; T.hist.push(v); if (T.hist.length > 30) T.hist.shift(); n++; }
+  });
+  save(); renderSkillRows();
+  const open = TOPICS.filter(t => isUnlocked(t.id)).length;
+  toast('Skill levels saved', `${n} station${n === 1 ? '' : 's'} changed. ${open} of ${TOPICS.length} stations open.`);
+}
+function renderAdaptiveDesc() {
+  $('#adaptive-desc').textContent = S.adaptive
+    ? 'On: skill goes up when you answer well and down when you struggle.'
+    : 'Off: every station stays at the level you set above. XP, streaks and the review queue still work.';
+}
 
 /* ---------- first launch: grade placement ---------- */
 let PICK = null;
@@ -118,7 +182,7 @@ function applyGrade(g) {
   toast(g === 'scratch' ? 'Starting from the beginning' : `Placed at Grade ${g} level`, `${open} station${open > 1 ? 's' : ''} open. Start with a lesson, then practise.`);
 }
 function showWelcome() { PICK = null; show('welcome'); renderWelcome(); }
-function show(id) { for (const s of VIEWS) $('#' + s).hidden = s !== id; window.scrollTo(0, 0); }
+function show(id) { for (const s of VIEWS) $('#' + s).hidden = s !== id; $('#btn-settings').hidden = id === 'welcome' || id === 'settings'; window.scrollTo(0, 0); }
 function renderHeader() {
   const L = levelInfo(S.xp);
   $('#m-level').textContent = L.L; $('#m-rank').textContent = L.rank;
@@ -191,8 +255,6 @@ function renderHome() {
   BADGES.forEach(b => { const got = !!S.badges[b.id]; const d = document.createElement('div'); d.className = 'badge' + (got ? ' got' : ''); d.innerHTML = `<div class="medal">${b.m}</div><div style="min-width:0"><b>${b.name}</b><span>${b.desc}</span></div>`; bb.appendChild(d); });
   $('#badge-count').textContent = `${Object.keys(S.badges).length} of ${BADGES.length}`;
   $('#st-n').textContent = S.n; $('#st-acc').textContent = S.n ? Math.round(S.c / S.n * 100) + '%' : '—'; $('#st-best').textContent = S.best;
-  $('#placed-note').textContent = typeof S.grade === 'number' ? `You started at Grade ${S.grade} level. Your ratings keep adjusting to your answers.` : S.grade === 'scratch' ? 'You started from the beginning.' : '';
-  resetUI(false);
 }
 function resetUI(confirming) {
   const row = $('#reset-row');
@@ -393,7 +455,7 @@ function finish(score, detail) {
   const head = score >= 1 ? 'Correct' : score >= 0.5 ? (P.usedHint ? 'Correct, with a hint' : 'Got there') : 'Not quite';
   const fb = $('#fb'); fb.className = 'fb ' + cls; fb.hidden = false;
   fb.innerHTML = `<h3>${head}</h3>${detail ? `<div>${detail}</div>` : ''}<div><span class="label">${P.type === 'mc' ? 'Why' : 'Worked solution'}</span><div class="${P.type === 'mc' ? '' : 'sol'}">${P.solution}</div></div>
-    <div class="fbmeta"><span class="chip ${delta >= 0 ? 'good' : 'warn'}">Skill ${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(2)} → ${S.topics[P.tid].r.toFixed(1)}</span><span class="chip acc">+${xp} XP</span>${S.streak >= 2 ? `<span class="chip blue">Streak ${S.streak}</span>` : ''}${rnote ? `<span class="chip">${rnote}</span>` : ''}</div>`;
+    <div class="fbmeta">${S.adaptive ? `<span class="chip ${delta >= 0 ? 'good' : 'warn'}">Skill ${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(2)} → ${S.topics[P.tid].r.toFixed(1)}</span>` : `<span class="chip">Skill fixed at ${S.topics[P.tid].r.toFixed(1)}</span>`}<span class="chip acc">+${xp} XP</span>${S.streak >= 2 ? `<span class="chip blue">Streak ${S.streak}</span>` : ''}${rnote ? `<span class="chip">${rnote}</span>` : ''}</div>`;
   $('#pre-actions').hidden = true;
   $('#run-skill').textContent = `Skill ${S.topics[P.tid].r.toFixed(1)}`;
   renderDots(); renderHeader();
@@ -437,7 +499,13 @@ function endRun() {
 function goHome() { cancelAnimationFrame(SC.raf); RUN = null; const d = $('#notes'); if (d.open) d.close(); if (S.grade == null) return showWelcome(); show('home'); renderHome(); }
 
 /* ---------- wiring ---------- */
-$('#btn-place').onclick = () => PICK && applyGrade(PICK);
+$('#btn-settings').onclick = openSettings;
+$('#btn-settings2').onclick = openSettings;
+$('#settings-back').onclick = () => goHome();
+$('#sk-save').onclick = saveSkills;
+$('#sk-discard').onclick = () => { TOPICS.forEach(t => DRAFT[t.id] = +S.topics[t.id].r.toFixed(1)); renderSkillRows(); };
+$('#adaptive-toggle').onchange = e => { S.adaptive = e.target.checked; save(); renderAdaptiveDesc(); toast(S.adaptive ? 'Adaptive difficulty on' : 'Adaptive difficulty off', S.adaptive ? 'Your skill levels will follow your answers again.' : 'Every station stays at the level you set.'); };
+$('#btn-place').onclick =() => PICK && applyGrade(PICK);
 $('#btn-scratch').onclick = () => applyGrade('scratch');
 $('#btn-hint').onclick =() => { const P = RUN.cur; if (P.done) return; P.usedHint = true; $('#hint').hidden = false; $('#btn-hint').disabled = true; $('#hint-note').textContent = 'Hint used: this problem is capped at 60% credit.'; };
 $('#btn-next').onclick = nextProblem;
@@ -456,7 +524,7 @@ $('#btn-notes').onclick = openNotes;
 $('#notes-close').onclick = () => { const d = $('#notes'); d.open && d.close ? d.close() : d.removeAttribute('open'); };
 window.llBack = () => {
   const d = $('#notes'); if (d.open) { d.close(); return true; }
-  if (!$('#run').hidden || !$('#summary').hidden || !$('#learn').hidden || !$('#sheet').hidden) { goHome(); return true; }
+  if (!$('#run').hidden || !$('#summary').hidden || !$('#learn').hidden || !$('#sheet').hidden || !$('#settings').hidden) { goHome(); return true; }
   return false;
 };
 new ResizeObserver(() => drawScene()).observe(cv);
