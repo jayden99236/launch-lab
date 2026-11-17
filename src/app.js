@@ -8,7 +8,9 @@ function load() {
     const j = JSON.parse(localStorage.getItem(KEY));
     if (j && j.topics) {
       const f = fresh(); Object.assign(f, j);
-      for (const t of TOPICS) if (!f.topics[t.id]) f.topics[t.id] = freshTopic();
+      // Stations added after this save was made start at the saved grade's level, or at the bottom if no grade was picked.
+      const gr = GRADES.find(x => x.g === f.grade);
+      for (const t of TOPICS) if (!f.topics[t.id]) { const r = gr ? gr.r[GRADE_ORDER.indexOf(t.id)] : 1.5; f.topics[t.id] = { r, n: 0, c: 0, hist: [r] }; }
       f.read = f.read || {}; f.review = Array.isArray(f.review) ? f.review : []; f.fixed = f.fixed || 0;
       if (typeof f.adaptive !== 'boolean') f.adaptive = true;
       // Saves from before grade placement existed: keep their progress and skip the picker if they've played.
@@ -37,7 +39,7 @@ const BADGES = [
   { id: 'fixer', m: '↺', name: 'Second Look', desc: 'Fix 10 problems from your review queue.' },
   { id: 'master', m: '7', name: 'Specialist', desc: 'Reach skill 7 at any station.' },
   { id: 'unit', m: 'U', name: 'Unit Complete', desc: 'Master every station in one unit.' },
-  { id: 'allopen', m: '13', name: 'Full Lab', desc: 'Unlock all 13 stations.' },
+  { id: 'allopen', m: '16', name: 'Full Lab', desc: 'Unlock all 16 stations.' },
   { id: 'scholar', m: 'Σ', name: 'Scholar', desc: 'Read every lesson.' },
   { id: 'grand', m: '★', name: 'Polymath', desc: 'Reach skill 7 at every station.' },
 ];

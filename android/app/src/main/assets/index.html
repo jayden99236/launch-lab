@@ -439,6 +439,7 @@ dialog#notes::backdrop{background:rgba(5,10,18,.55)}
 (() => {
 /* ---------- constants & helpers ---------- */
 const G = 9.8, GC = 6.67e-11, ME = 5.97e24, RE = 6.37e6, CL = 3e8, VS = 343, CW = 4180, LF = 3.34e5, LV = 2.26e6, RHO = 1000, PATM = 101300;
+const KE = 9e9, QE = 1.6e-19, MU0 = 4e-7 * Math.PI, MEL = 9.11e-31, MPR = 1.67e-27;
 const $ = s => document.querySelector(s);
 const R = Math.random;
 const rint = (a, b) => Math.floor(a + R() * (b - a + 1));
@@ -471,7 +472,7 @@ const UNITS = [
   { id: 'u1', name: 'Motion and forces', desc: 'How things move and why.' },
   { id: 'u2', name: 'Circles, orbits and oscillations', desc: 'Motion that turns, swings and repeats.' },
   { id: 'u3', name: 'Matter and heat', desc: 'Fluids, pressure and thermal energy.' },
-  { id: 'u4', name: 'Electricity and light', desc: 'Circuits, waves, rays and lenses.' },
+  { id: 'u4', name: 'Electricity, magnetism and light', desc: 'Circuits, charges, fields, induction and lenses.' },
 ];
 const TOPICS = [
   { id: 'kin', unit: 'u1', req: [], name: 'Kinematics', sym: 'v = u + at', blurb: 'Speed, acceleration and stopping distances.' },
@@ -486,6 +487,9 @@ const TOPICS = [
   { id: 'fluids', unit: 'u3', req: ['force'], name: 'Pressure and fluids', sym: 'P = ρgh', blurb: 'Depth, hydraulics and buoyancy.' },
   { id: 'thermal', unit: 'u3', req: ['energy'], name: 'Heat and temperature', sym: 'Q = mcΔT', blurb: 'Heating, melting, mixing and gas laws.' },
   { id: 'elec', unit: 'u4', req: ['energy'], name: 'Circuits', sym: 'V = IR', blurb: 'Current, resistance, power and cost.' },
+  { id: 'estat', unit: 'u4', req: ['elec'], name: 'Electrostatics', sym: 'F = kq₁q₂ / r²', blurb: 'Charge, Coulomb’s law and electric fields.' },
+  { id: 'mag', unit: 'u4', req: ['estat'], name: 'Magnetism', sym: 'F = BIL', blurb: 'Magnetic fields, forces on wires and moving charges.' },
+  { id: 'induct', unit: 'u4', req: ['mag'], name: 'Induction', sym: 'ε = −N ΔΦ / Δt', blurb: 'Faraday’s law, generators and transformers.' },
   { id: 'optics', unit: 'u4', req: ['waves'], name: 'Light and optics', sym: 'n₁sinθ₁ = n₂sinθ₂', blurb: 'Reflection, refraction and lenses.' },
 ];
 const tname = id => TOPICS.find(t => t.id === id).name;
@@ -493,14 +497,14 @@ const tname = id => TOPICS.find(t => t.id === id).name;
 /* ---------- grade placement ----------
    Starting skill per station for a typical student at the end of each grade.
    Ratings: under 3.5 = warm-up problems, 3.5–6.5 = core, above 6.5 = challenge. 4 opens dependent stations.
-   Order: kin, force, energy, proj, mom, circ, grav, shm, waves, fluids, thermal, elec, optics */
-const GRADE_ORDER = ['kin', 'force', 'energy', 'proj', 'mom', 'circ', 'grav', 'shm', 'waves', 'fluids', 'thermal', 'elec', 'optics'];
+   Order: kin, force, energy, proj, mom, circ, grav, shm, waves, fluids, thermal, elec, optics, estat, mag, induct */
+const GRADE_ORDER = ['kin', 'force', 'energy', 'proj', 'mom', 'circ', 'grav', 'shm', 'waves', 'fluids', 'thermal', 'elec', 'optics', 'estat', 'mag', 'induct'];
 const GRADES = [
-  { g: 8, title: 'Grade 8', desc: 'Speed and distance, pushes and pulls, simple circuits, heat and light basics.', r: [4.0, 3.0, 2.5, 2.0, 1.5, 1.0, 1.0, 1.0, 2.0, 2.5, 2.5, 2.5, 1.5] },
-  { g: 9, title: 'Grade 9', desc: 'Acceleration, Newton’s laws, kinetic and potential energy, Ohm’s law, v = fλ.', r: [4.5, 4.0, 3.5, 2.5, 2.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 2.0] },
-  { g: 10, title: 'Grade 10', desc: 'Equations of motion, friction, energy conservation, momentum, pressure, Q = mcΔT, series and parallel.', r: [5.5, 5.0, 4.5, 4.0, 4.0, 2.5, 2.0, 2.5, 4.0, 4.5, 4.5, 4.5, 3.0] },
-  { g: 11, title: 'Grade 11', desc: 'Projectiles, impulse, circular motion, oscillations, sound, gas laws, refraction and lenses.', r: [6.0, 5.5, 5.5, 5.0, 5.0, 4.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 4.5] },
-  { g: 12, title: 'Grade 12', desc: 'Gravitation and orbits, SHM in depth, standing waves, multi-step problems across every topic.', r: [6.5, 6.5, 6.0, 6.0, 6.0, 5.0, 4.5, 5.0, 5.5, 5.5, 5.5, 5.5, 5.0] },
+  { g: 8, title: 'Grade 8', desc: 'Speed and distance, pushes and pulls, simple circuits, heat and light basics.', r: [4.0, 3.0, 2.5, 2.0, 1.5, 1.0, 1.0, 1.0, 2.0, 2.5, 2.5, 2.5, 1.5, 1.5, 1.5, 1.0] },
+  { g: 9, title: 'Grade 9', desc: 'Acceleration, Newton’s laws, kinetic and potential energy, Ohm’s law, v = fλ.', r: [4.5, 4.0, 3.5, 2.5, 2.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 2.0, 2.0, 2.0, 1.0] },
+  { g: 10, title: 'Grade 10', desc: 'Equations of motion, friction, energy conservation, momentum, pressure, Q = mcΔT, series and parallel, static charge.', r: [5.5, 5.0, 4.5, 4.0, 4.0, 2.5, 2.0, 2.5, 4.0, 4.5, 4.5, 4.5, 3.0, 4.0, 3.0, 2.0] },
+  { g: 11, title: 'Grade 11', desc: 'Projectiles, impulse, circular motion, oscillations, sound, gas laws, refraction and lenses, Coulomb’s law, magnetic forces.', r: [6.0, 5.5, 5.5, 5.0, 5.0, 4.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 4.5, 4.5, 4.0, 3.5] },
+  { g: 12, title: 'Grade 12', desc: 'Gravitation and orbits, SHM in depth, standing waves, electromagnetic induction, multi-step problems across every topic.', r: [6.5, 6.5, 6.0, 6.0, 6.0, 5.0, 4.5, 5.0, 5.5, 5.5, 5.5, 5.5, 5.0, 5.5, 5.0, 4.5] },
 ];
 
 /* ---------- lessons ----------
@@ -654,6 +658,46 @@ const LESSONS = {
     ex: { q: 'A 12 V battery drives current through 4 Ω and 8 Ω resistors in series. Find the current and the voltage across the 8 Ω resistor.', steps: ['Total resistance: 4 + 8 = 12 Ω.', 'Current: I = V / R = 12 / 12 = 1 A.', 'Voltage across 8 Ω: V = IR = 1 × 8 = 8 V.'] },
     traps: ['Adding parallel resistances as if they were in series.', 'Forgetting to flip 1/R at the end.', 'Mixing watts and kilowatts when working out energy costs.'],
   },
+  estat: {
+    intro: 'Charge comes in two kinds, positive and negative. Charges push and pull on each other without touching, and that force holds every atom together.',
+    sections: [
+      ['Charge', 'Charge is measured in coulombs (C). An electron carries −1.6 × 10⁻¹⁹ C and a proton +1.6 × 10⁻¹⁹ C. Like charges repel and unlike charges attract. Rubbing a balloon moves electrons from one object to the other; it never creates charge. Any charge is a whole number of electron charges: <i class="v">Q = ne</i>.'],
+      ['Coulomb’s law', 'The force between two point charges is <i class="v">F = kq₁q₂ / r²</i>, with k = 9.0 × 10⁹ N·m²/C². Double the distance and the force drops to a quarter. Everyday charges are small, so expect microcoulombs: 1 μC = 10⁻⁶ C.'],
+      ['Electric field', 'A field describes the force a charge would feel at each point: <i class="v">E = F / q</i>, in N/C. Its direction is the direction of the force on a positive charge. Around a point charge, <i class="v">E = kQ / r²</i>. Field lines leave positive charges and end on negative ones.'],
+      ['Voltage and uniform fields', 'Potential difference is the energy per coulomb: <i class="v">W = qV</i>. Between two parallel plates the field is the same everywhere: <i class="v">E = V / d</i>. A charge q between the plates feels a steady force <i class="v">F = qE</i>.'],
+      ['Sharing charge', 'When two identical metal spheres touch, the total charge spreads evenly. Each ends up with <i class="v">(q₁ + q₂) / 2</i>. Keep the signs when you add.'],
+    ],
+    eqs: [['Q = ne', 'charge comes in steps of e = 1.6 × 10⁻¹⁹ C'], ['F = kq₁q₂ / r²', 'Coulomb’s law (k = 9.0 × 10⁹)'], ['E = F / q', 'electric field'], ['E = kQ / r²', 'field of a point charge'], ['E = V / d', 'uniform field between plates'], ['W = qV', 'work done on a charge']],
+    ex: { q: 'Charges of +2 μC and −3 μC are 0.30 m apart. Find the force between them.', steps: ['Convert: 2 × 10⁻⁶ C and 3 × 10⁻⁶ C.', 'F = kq₁q₂ / r² = 9.0×10⁹ × 2×10⁻⁶ × 3×10⁻⁶ / 0.30².', 'F = 0.054 / 0.09 = 0.60 N. The signs differ, so the charges attract.'] },
+    traps: ['Leaving charges in μC or nC instead of coulombs.', 'Forgetting to square the distance, or leaving it in centimetres.', 'Feeding the signs into Coulomb’s law. Work out the size first, then decide whether the charges attract or repel.'],
+  },
+  mag: {
+    intro: 'Magnetism and electric current are two sides of one thing. Moving charge makes a magnetic field, and a magnetic field pushes on moving charge.',
+    sections: [
+      ['Magnets and fields', 'Every magnet has a north and a south pole. Like poles repel and unlike poles attract. Field lines run from north to south outside the magnet. Field strength B is measured in tesla (T): the Earth’s field is about 5 × 10⁻⁵ T, and an MRI scanner about 2 T.'],
+      ['Fields from currents', 'A current-carrying wire is circled by a magnetic field. Point your right thumb along the current and your fingers curl the way the field goes. At distance r from a long wire, <i class="v">B = μ₀I / (2πr)</i>, with μ₀ = 4π × 10⁻⁷ T·m/A. Inside a long coil (a solenoid) the field is uniform: <i class="v">B = μ₀nI</i>, where n is the number of turns per metre.'],
+      ['Force on a wire', 'A wire of length L carrying current I in a field B feels <i class="v">F = BIL sinθ</i>, where θ is the angle between the wire and the field. The force is largest at right angles and zero when the wire runs along the field. This force turns every electric motor.'],
+      ['Force on a moving charge', 'A charge q moving at speed v feels <i class="v">F = qvB sinθ</i>. The force is always at right angles to the velocity, so it changes the direction of motion and never the speed.'],
+      ['Circular paths', 'A charge moving at right angles to a uniform field goes round in a circle, with the magnetic force as the centripetal force: qvB = mv²/r. So <i class="v">r = mv / (qB)</i>. Mass spectrometers use this to sort atoms by mass.'],
+    ],
+    eqs: [['F = BIL sinθ', 'force on a current-carrying wire'], ['F = qvB sinθ', 'force on a moving charge'], ['r = mv / (qB)', 'radius of a charge’s circular path'], ['B = μ₀I / (2πr)', 'field around a long wire (μ₀ = 4π × 10⁻⁷)'], ['B = μ₀nI', 'field inside a solenoid (n = turns per metre)']],
+    ex: { q: 'A 0.25 m wire carries 4.0 A at right angles to a 0.30 T field. Find the force on it.', steps: ['The wire is at 90° to the field, so sinθ = 1.', 'F = BIL = 0.30 × 4.0 × 0.25 = 0.30 N.'] },
+    traps: ['Expecting a force when the current or the motion is parallel to the field. It is zero.', 'Thinking a magnetic field speeds a charge up. It only turns it.', 'Leaving lengths in centimetres or fields in millitesla.'],
+  },
+  induct: {
+    intro: 'A changing magnetic field makes a voltage. That one idea runs every generator, transformer and wireless charger.',
+    sections: [
+      ['Magnetic flux', 'Flux measures how much field passes through a loop: <i class="v">Φ = BA cosθ</i>, in webers (Wb). θ is the angle between the field and the line at right angles to the loop, so a loop facing the field head-on catches the most.'],
+      ['Faraday’s law', 'Whenever the flux through a coil changes, a voltage (an EMF) appears across it: <i class="v">ε = −N ΔΦ / Δt</i>. A faster change or more turns gives a bigger EMF. A steady flux gives nothing.'],
+      ['Lenz’s law', 'The minus sign says the induced current always opposes the change that caused it. Push a north pole toward a coil and the coil’s near end becomes a north pole and pushes back. If it helped instead, you would get energy for free.'],
+      ['Moving conductors', 'A rod of length L moving at speed v straight across a field has an EMF between its ends: <i class="v">ε = BLv</i>. Connect it to a circuit and current flows: <i class="v">I = ε / R</i>.'],
+      ['Transformers', 'Two coils share an iron core. An alternating current in the primary keeps the flux changing, which induces a voltage in the secondary: <i class="v">Vₛ / Vₚ = Nₛ / Nₚ</i>. An ideal transformer passes on all the power: <i class="v">VₚIₚ = VₛIₛ</i>. Power lines run at very high voltage so the current, and the I²R heating, stays small.'],
+      ['Alternating current', 'A coil spinning in a field makes a voltage that swings back and forth. The quoted mains voltage is the rms value, the steady voltage that would give the same heating: <i class="v">V_rms = V_peak / √2</i>.'],
+    ],
+    eqs: [['Φ = BA cosθ', 'magnetic flux'], ['ε = −N ΔΦ / Δt', 'Faraday’s law'], ['ε = BLv', 'rod moving across a field'], ['Vₛ / Vₚ = Nₛ / Nₚ', 'transformer turns ratio'], ['VₚIₚ = VₛIₛ', 'ideal transformer'], ['V_rms = V_peak / √2', 'alternating voltage']],
+    ex: { q: 'The flux through a 200-turn coil rises from 0.010 Wb to 0.040 Wb in 0.50 s. Find the EMF.', steps: ['ΔΦ = 0.040 − 0.010 = 0.030 Wb.', 'ε = N ΔΦ / Δt = 200 × 0.030 / 0.50 = 12 V.'] },
+    traps: ['Expecting an EMF from a steady field. Only a changing flux induces one.', 'Forgetting to multiply by the number of turns.', 'Turning the transformer ratio upside down. More turns means more voltage.'],
+  },
   optics: {
     intro: 'Light travels in straight lines until it meets a surface. Then it reflects, refracts, or both.',
     sections: [
@@ -781,6 +825,37 @@ const MC = {
     { t: 2, q: 'Two bulbs rated 60 W and 100 W for the same voltage. Which has the higher resistance?', o: ['The 60 W bulb', 'The 100 W bulb', 'They are equal', 'It depends on the current'], h: 'P = V²/R at fixed V.', w: 'R = V²/P, so the smaller power means the larger resistance.' },
     { t: 2, q: 'If the current through a resistor doubles, the power it uses becomes…', o: ['4 times as large', '2 times as large', 'Unchanged', 'Half as large'], h: 'P = I²R.', w: 'P ∝ I², and 2² = 4.' },
   ],
+  estat: [
+    { t: 0, q: 'Two positively charged balloons are brought close together. They…', o: ['Repel each other', 'Attract each other', 'Do nothing', 'Attract, then repel'], h: 'Like charges…', w: 'Like charges repel. Unlike charges attract.' },
+    { t: 0, q: 'A plastic rod rubbed with a cloth becomes negatively charged because it has…', o: ['Gained electrons', 'Lost electrons', 'Gained protons', 'Lost protons'], h: 'Only one kind of particle moves easily between objects.', w: 'Protons stay locked in the nucleus. Rubbing moves electrons onto the rod, giving it extra negative charge.' },
+    { t: 0, q: 'Electric charge is measured in…', o: ['Coulombs', 'Amperes', 'Volts', 'Newtons'], h: 'One ampere is one of these per second.', w: 'Charge is measured in coulombs (C). An ampere is one coulomb per second.' },
+    { t: 1, q: 'The distance between two charges is doubled. The force between them becomes…', o: ['One quarter as large', 'Half as large', 'Twice as large', 'Four times as large'], h: 'F ∝ 1 / r².', w: 'Coulomb’s law is an inverse-square law: 1 / 2² = ¼.' },
+    { t: 1, q: 'The direction of an electric field at a point is the direction of the force on…', o: ['A positive charge placed there', 'A negative charge placed there', 'Any charge placed there', 'A neutral object placed there'], h: 'It is a convention, and it matches the way field lines leave positive charges.', w: 'The field direction is defined by the force on a positive test charge. A negative charge is pushed the opposite way.' },
+    { t: 2, q: 'Both charges in a pair are doubled, and the distance between them is doubled too. The force…', o: ['Stays the same', 'Doubles', 'Halves', 'Becomes four times as large'], h: 'F ∝ q₁q₂ / r². Work out each factor.', w: 'The charges give 2 × 2 = 4 on top and the distance gives 2² = 4 underneath, so the force is unchanged.' },
+    { t: 2, q: 'An electron and a proton sit in the same uniform electric field. Compared with the proton, the electron feels…', o: ['An equal force in the opposite direction', 'A much smaller force', 'A much larger force', 'An equal force in the same direction'], h: 'F = qE. Compare the charges, not the masses.', w: 'Their charges are equal in size and opposite in sign, so the forces are equal and opposite. The electron accelerates far more because it is so much lighter.' },
+    { t: 2, q: 'Exactly midway between two equal positive charges, the electric field is…', o: ['Zero', 'Twice the field of one charge', 'Pointing toward both charges', 'Impossible to define'], h: 'Each charge pushes a positive test charge away from itself.', w: 'The two fields are equal in size and opposite in direction at the midpoint, so they cancel.' },
+  ],
+  mag: [
+    { t: 0, q: 'The north poles of two bar magnets are pushed together. They…', o: ['Repel', 'Attract', 'Do nothing', 'Swap poles'], h: 'Like poles…', w: 'Like poles repel and unlike poles attract.' },
+    { t: 0, q: 'Magnetic field strength is measured in…', o: ['Tesla', 'Volts', 'Coulombs', 'Ohms'], h: 'It is named after an inventor who worked on alternating current.', w: 'Field strength B is measured in tesla (T).' },
+    { t: 0, q: 'Which of these materials is strongly attracted to a magnet?', o: ['Iron', 'Copper', 'Aluminium', 'Plastic'], h: 'Think of what a fridge door is made of.', w: 'Iron, nickel and cobalt are strongly magnetic. Copper and aluminium are metals, but a magnet barely affects them.' },
+    { t: 1, q: 'A wire carrying a current lies parallel to a magnetic field. The magnetic force on it is…', o: ['Zero', 'At its maximum', 'Half its maximum', 'Directed along the wire'], h: 'F = BIL sinθ. What is θ here?', w: 'θ = 0, so sinθ = 0 and there is no force. The force is largest when the wire is at right angles to the field.' },
+    { t: 1, q: 'The magnetic field lines around a long straight current-carrying wire are…', o: ['Circles around the wire', 'Straight lines along the wire', 'Straight lines pointing away from the wire', 'Spirals along the wire'], h: 'Use the right-hand grip rule.', w: 'Thumb along the current, fingers curl around the wire: the field forms circles centred on it.' },
+    { t: 1, q: 'Outside a bar magnet, the field lines run…', o: ['From the north pole to the south pole', 'From the south pole to the north pole', 'In circles around the middle', 'Straight out from both poles'], h: 'A compass needle’s north end points along the field.', w: 'By convention field lines leave the north pole and enter the south pole.' },
+    { t: 2, q: 'A charged particle moves at right angles to a uniform magnetic field. Its speed…', o: ['Stays the same', 'Increases steadily', 'Decreases steadily', 'Drops to zero'], h: 'The force is always at right angles to the velocity.', w: 'A force at right angles to the motion does no work. It bends the path into a circle without changing the speed.' },
+    { t: 2, q: 'A proton circles in a uniform magnetic field. If its speed doubles, the radius of its path…', o: ['Doubles', 'Halves', 'Stays the same', 'Becomes four times as large'], h: 'r = mv / (qB).', w: 'r is proportional to v, so twice the speed gives twice the radius.' },
+    { t: 2, q: 'An electron sits at rest in a strong magnetic field. The magnetic force on it is…', o: ['Zero', 'Toward the north pole', 'Toward the south pole', 'At right angles to the field'], h: 'F = qvB. What is v?', w: 'A magnetic field only pushes on moving charge. With v = 0 the force is zero.' },
+  ],
+  induct: [
+    { t: 0, q: 'A magnet is held still inside a coil of wire. The induced voltage is…', o: ['Zero', 'Steady and large', 'Steadily rising', 'Alternating'], h: 'Is the flux through the coil changing?', w: 'Only a changing flux induces a voltage. A magnet at rest gives none, however strong it is.' },
+    { t: 0, q: 'Pushing a magnet into a coil faster makes the induced voltage…', o: ['Larger', 'Smaller', 'No different', 'Zero'], h: 'Faraday’s law depends on how quickly the flux changes.', w: 'ε = N ΔΦ / Δt. The same change in a shorter time gives a larger EMF.' },
+    { t: 0, q: 'A transformer is used to change the…', o: ['Voltage of an alternating supply', 'Frequency of the supply', 'Voltage of a battery', 'Total energy available'], h: 'Think of a phone charger plugged into the mains.', w: 'A transformer steps an alternating voltage up or down. It can’t change the frequency or create energy.' },
+    { t: 1, q: 'A transformer has more turns on its secondary coil than on its primary. It…', o: ['Steps the voltage up', 'Steps the voltage down', 'Leaves the voltage unchanged', 'Turns AC into DC'], h: 'Vₛ / Vₚ = Nₛ / Nₚ.', w: 'More turns on the secondary means a larger secondary voltage: a step-up transformer.' },
+    { t: 1, q: 'Transformers do not work on steady direct current because…', o: ['A steady current gives no changing flux', 'Direct current is too weak', 'The two coils would repel', 'The iron core blocks direct current'], h: 'What does Faraday’s law need?', w: 'A steady current makes a steady field. With no change in flux, nothing is induced in the secondary.' },
+    { t: 2, q: 'The north pole of a magnet is pushed toward a coil. The induced current makes the near end of the coil…', o: ['A north pole, repelling the magnet', 'A south pole, attracting the magnet', 'Unmagnetised', 'Flip between north and south'], h: 'Lenz’s law: the induced current opposes the change.', w: 'The coil opposes the approaching magnet by becoming a north pole. You have to do work to push the magnet in, and that work becomes electrical energy.' },
+    { t: 2, q: 'Power is sent along transmission lines at very high voltage in order to…', o: ['Reduce the current, and so the heating losses', 'Make the electricity travel faster', 'Increase the current', 'Avoid using transformers'], h: 'P = VI, and the lines waste I²R.', w: 'For the same power, a higher voltage means a smaller current. The I²R loss in the cables falls sharply.' },
+    { t: 2, q: 'An ideal transformer steps the voltage up by a factor of 10. The current is…', o: ['Stepped down by a factor of 10', 'Stepped up by a factor of 10', 'Unchanged', 'Stepped down by a factor of 100'], h: 'VₚIₚ = VₛIₛ.', w: 'Power in equals power out, so ten times the voltage means one tenth of the current.' },
+  ],
   optics: [
     { t: 0, q: 'Angles of incidence and reflection are measured from the…', o: ['Normal', 'Surface', 'Horizontal', 'Light source'], h: 'The normal is the line at 90° to the surface.', w: 'All ray angles in optics are measured from the normal.' },
     { t: 0, q: 'A ray hits a mirror at 30° to the normal. The reflected ray leaves at…', o: ['30° to the normal', '60° to the normal', '90° to the normal', '15° to the normal'], h: 'Angle in = angle out.', w: 'The law of reflection: θᵢ = θᵣ.' },
@@ -804,6 +879,9 @@ function defaultScene(tid) {
     fluids: { kind: 'tank', h: 3, obj: 'float', frac: 0.6, lines: ['F_b = ρVg'] },
     thermal: { kind: 'thermo', T1: 20, T2: 80, lines: ['Q = mcΔT'] },
     elec: { kind: 'circuit', V: 12, Rs: [4, 8], mode: 'series' },
+    estat: { kind: 'charges', q1: 2, q2: -3, l1: '+', l2: '−', lines: ['F = kq₁q₂ / r²'] },
+    mag: { kind: 'bfield', mode: 'orbit', lines: ['F = qvB'] },
+    induct: { kind: 'induct', mode: 'coil', lines: ['ε = −N ΔΦ / Δt'] },
     optics: { kind: 'refract', n1: 1, n2: 1.5, th1: 40 },
   }[tid];
 }
@@ -1159,6 +1237,119 @@ GEN.optics = d => {
   if (q < 0.7) { const d0 = f + rint(2, 40), di = 1 / (1 / f - 1 / d0), h0 = rint(2, 20), hi = h0 * di / d0; return num({ prompt: `A <b>${h0} cm</b> tall candle stands <b>${d0} cm</b> from a converging lens with <b>f = ${f} cm</b>. How tall is its image?`, unit: 'cm', answer: hi, hint: 'Find dᵢ from the lens equation, then image height = h₀ × dᵢ / d₀.', solution: `dᵢ = 1 / (1/${f} − 1/${d0}) = ${fmt(di)} cm<br>hᵢ = ${h0} × ${fmt(di)} / ${d0} = <b>${fmt(hi)} cm</b> (upside down)`, scene: { kind: 'lens', f, d0 } }); }
   const d0 = rint(2, f - 1), di = 1 / (1 / f - 1 / d0);
   return num({ prompt: `A magnifying glass has <b>f = ${f} cm</b>. An insect is <b>${d0} cm</b> away. What is the image distance? (Give a negative number for a virtual image.)`, unit: 'cm', answer: di, hint: 'Use 1/dᵢ = 1/f − 1/d₀. With d₀ < f the answer is negative.', solution: `1/dᵢ = 1/${f} − 1/${d0} = ${fmt(1 / f - 1 / d0, 4)}<br>dᵢ = <b>${fmt(di)} cm</b> (virtual, upright, magnified ×${fmt(-di / d0)})`, scene: { kind: 'lens', f, d0 } });
+};
+
+/* ---------- electromagnetism ---------- */
+const ENOTE = 'Use e for powers of ten, e.g. 3.2e-14.';
+const KNOTE = '(k = 9.0 × 10⁹ N·m²/C²)';
+const sgn = q => (q > 0 ? '+' : '−') + Math.abs(q);
+
+GEN.estat = d => {
+  const t = tier(d);
+  if (R() < 0.22) return mcFrom('estat', t);
+  if (t === 0) {
+    const q = R();
+    if (q < 0.35) { const n = rint(1, 9), Q = n * 1.6; return num({ prompt: `A balloon rubbed on a jumper picks up <b>${n} × 10¹³</b> extra electrons. How much charge is that, in microcoulombs? Give the size only. (e = 1.6 × 10⁻¹⁹ C)`, unit: 'μC', answer: Q, hint: 'Q = ne. Then 1 μC = 10⁻⁶ C.', solution: `Q = ne = ${n}×10¹³ × 1.6×10⁻¹⁹ = ${fmt(Q)}×10⁻⁶ C = <b>${fmt(Q)} μC</b>`, scene: { kind: 'charges', q1: -1, l1: 'balloon', lines: ['Q = ne'], ans: `Q = ${fmt(Q)} μC` } }); }
+    if (q < 0.7) { const V = pick([1.5, 3, 6, 9, 12, 24]), Q = rint(5, 200); return num({ prompt: `A <b>${V} V</b> battery moves <b>${Q} C</b> of charge around a circuit. How much energy does it transfer?`, unit: 'J', answer: V * Q, hint: 'Voltage is energy per coulomb: W = qV.', solution: `W = qV = ${Q} × ${V} = <b>${fmt(V * Q)} J</b>`, scene: { kind: 'plates', V: `${V} V`, q: 1, lines: ['W = qV'], ans: `W = ${fmt(V * Q)} J` } }); }
+    const qq = rint(2, 20), E = rint(2, 40), F = qq * E;
+    return num({ prompt: `A <b>+${qq} μC</b> charge sits in an electric field of <b>${E} kN/C</b>. What force acts on it, in millinewtons?`, unit: 'mN', answer: F, hint: 'F = qE. Convert to C and N/C first, or notice that μC × kN/C gives mN.', solution: `F = qE = ${qq}×10⁻⁶ × ${E}×10³ = ${fmt(F)}×10⁻³ N = <b>${fmt(F)} mN</b>`, scene: { kind: 'plates', V: `${E} kN/C`, q: 1, lines: ['F = qE'], ans: `F = ${fmt(F)} mN` } });
+  }
+  if (t === 1) {
+    const q = R();
+    if (q < 0.4) {
+      let q1, q2, r, F; do { q1 = rint(1, 9); q2 = rint(1, 9); r = rstep(0.1, 0.6, 0.05); F = KE * q1 * q2 * 1e-12 / (r * r); } while (F < 0.3);
+      const s2 = pick([1, -1]);
+      return num({ prompt: `Charges of <b>+${q1} μC</b> and <b>${sgn(s2 * q2)} μC</b> are <b>${r} m</b> apart. What is the size of the force between them? ${KNOTE}`, unit: 'N', answer: F, hint: 'Coulomb’s law: F = kq₁q₂ / r². Convert μC to C, and leave the signs out to get the size.', solution: `F = 9.0×10⁹ × ${q1}×10⁻⁶ × ${q2}×10⁻⁶ / ${r}² = <b>${fmt(F)} N</b> (${s2 > 0 ? 'repulsive' : 'attractive'})`, scene: { kind: 'charges', q1, q2: s2 * q2, l1: `+${q1} μC`, l2: `${sgn(s2 * q2)} μC`, rl: `${r} m`, lines: ['F = kq₁q₂ / r²'], ans: `F = ${fmt(F)} N` } });
+    }
+    if (q < 0.7) { const Q = rint(1, 9) * 10, r = rstep(0.1, 0.5, 0.1), E = KE * Q * 1e-9 / (r * r); return num({ prompt: `What is the electric field strength <b>${r} m</b> from a <b>+${Q} nC</b> point charge? ${KNOTE}`, unit: 'N/C', answer: E, hint: 'E = kQ / r², with 1 nC = 10⁻⁹ C.', solution: `E = kQ / r² = 9.0×10⁹ × ${Q}×10⁻⁹ / ${r}² = <b>${fmt(E)} N/C</b>, pointing away from the charge`, scene: { kind: 'charges', q1: 1, l1: `+${Q} nC`, rl: `${r} m`, lines: ['E = kQ / r²'], ans: `E = ${fmt(E)} N/C` } }); }
+    const V = rint(1, 20) * 50, dm = rint(2, 50), E = V / (dm / 1000);
+    return num({ prompt: `Two parallel plates <b>${dm} mm</b> apart have <b>${V} V</b> across them. What is the electric field between them?`, unit: 'V/m', answer: E, hint: 'E = V / d, with d in metres.', solution: `E = V / d = ${V} / ${dm / 1000} = <b>${fmt(E)} V/m</b>`, scene: { kind: 'plates', V: `${V} V`, dl: `${dm} mm`, q: 1, lines: ['E = V / d'], ans: `E = ${fmt(E)} V/m` } });
+  }
+  const q = R();
+  if (q < 0.25) { const E = rint(1, 9) * 100, F = QE * E, a = F / MEL; return num({ prompt: `An electron (charge 1.6 × 10⁻¹⁹ C, mass 9.11 × 10⁻³¹ kg) is in a uniform electric field of <b>${E} N/C</b>. What is the size of its acceleration? ${ENOTE}`, unit: 'm/s²', answer: a, hint: 'Find the force with F = qE, then use a = F / m.', solution: `F = qE = 1.6×10⁻¹⁹ × ${E} = ${sci(F)} N<br>a = F / m = ${sci(F)} / 9.11×10⁻³¹ = <b>${sci(a)} m/s²</b>`, scene: { kind: 'plates', V: `${E} N/C`, q: -1, lines: ['a = qE / m'], ans: `a = ${sci(a)} m/s²` } }); }
+  if (q < 0.5) {
+    let a, b, r, qs, F; do { a = rint(6, 12); b = rint(1, 4); r = rstep(0.1, 0.3, 0.05); qs = (a - b) / 2; F = KE * qs * qs * 1e-12 / (r * r); } while (F < 0.3);
+    return num({ prompt: `Two identical metal spheres carry <b>+${a} μC</b> and <b>−${b} μC</b>. They are touched together, then placed <b>${r} m</b> apart. What force acts between them now? ${KNOTE}`, unit: 'N', answer: F, hint: 'Touching shares the total charge equally between the spheres. Then use Coulomb’s law.', solution: `each sphere: (${a} − ${b}) / 2 = ${fmt(qs)} μC<br>F = 9.0×10⁹ × (${fmt(qs)}×10⁻⁶)² / ${r}² = <b>${fmt(F)} N</b> (repulsive)`, scene: { kind: 'charges', q1: 1, q2: 1, l1: 'after touching', l2: 'after touching', rl: `${r} m`, lines: ['q = (q₁ + q₂) / 2'], ans: `F = ${fmt(F)} N` } });
+  }
+  if (q < 0.75) {
+    let q1, q2, q3, r, F1, F3; do { q1 = rint(5, 9); q3 = rint(1, 4); q2 = rint(1, 5); r = rstep(0.1, 0.5, 0.1); F1 = KE * q1 * q2 * 1e-12 / (r * r); F3 = KE * q3 * q2 * 1e-12 / (r * r); } while (F1 - F3 < 0.3);
+    return num({ prompt: `Three charges sit in a line. <b>+${q1} μC</b> is on the left, <b>+${q3} μC</b> is on the right, and <b>+${q2} μC</b> is exactly in the middle, <b>${r} m</b> from each. What is the size of the net force on the middle charge? ${KNOTE}`, unit: 'N', answer: F1 - F3, hint: 'Find the force from each outer charge. They push the middle charge in opposite directions, so subtract.', solution: `from the left: 9.0×10⁹ × ${q1}×10⁻⁶ × ${q2}×10⁻⁶ / ${r}² = ${fmt(F1)} N (pushes right)<br>from the right: 9.0×10⁹ × ${q3}×10⁻⁶ × ${q2}×10⁻⁶ / ${r}² = ${fmt(F3)} N (pushes left)<br>net = ${fmt(F1)} − ${fmt(F3)} = <b>${fmt(F1 - F3)} N</b> to the right`, scene: { kind: 'charges', q1, q2: q3, mid: q2, l1: `+${q1} μC`, l2: `+${q3} μC`, lm: `+${q2} μC`, rl: `${r} m`, lines: ['F = kq₁q₂ / r²'], ans: `net F = ${fmt(F1 - F3)} N` } });
+  }
+  const V = rint(1, 20) * 100, v = Math.sqrt(2 * QE * V / MEL);
+  return num({ prompt: `An electron starts at rest and is accelerated through <b>${V} V</b>. What speed does it reach? (e = 1.6 × 10⁻¹⁹ C, m = 9.11 × 10⁻³¹ kg) ${ENOTE}`, unit: 'm/s', answer: v, hint: 'The energy it gains is qV, and that becomes kinetic energy: qV = ½mv².', solution: `v = √(2qV / m) = √(2 × 1.6×10⁻¹⁹ × ${V} / 9.11×10⁻³¹) = <b>${sci(v)} m/s</b>`, scene: { kind: 'plates', V: `${V} V`, q: -1, lines: ['qV = ½mv²'], ans: `v = ${sci(v)} m/s` } });
+};
+
+GEN.mag = d => {
+  const t = tier(d);
+  if (R() < 0.22) return mcFrom('mag', t);
+  if (t === 0) {
+    if (R() < 0.55) {
+      let B, I, L, F; do { B = rstep(0.1, 2, 0.1); I = rint(1, 20); L = rstep(0.1, 2, 0.1); F = B * I * L; } while (F < 0.3);
+      return num({ prompt: `A <b>${L} m</b> wire carrying <b>${I} A</b> lies at right angles to a <b>${B} T</b> magnetic field. What force acts on it?`, unit: 'N', answer: F, hint: 'At right angles, F = BIL.', solution: `F = BIL = ${B} × ${I} × ${L} = <b>${fmt(F)} N</b>`, scene: { kind: 'bfield', mode: 'wire', lines: [`B = ${B} T`, `I = ${I} A`], ans: `F = ${fmt(F)} N` } });
+    }
+    const B = rstep(0.3, 2, 0.1), I = rint(2, 10), L = rstep(0.2, 1.5, 0.1), F = +(B * I * L).toFixed(4);
+    return num({ prompt: `A <b>${L} m</b> wire carries <b>${I} A</b> at right angles to a magnetic field and feels a force of <b>${fmt(F, 3)} N</b>. How strong is the field?`, unit: 'T', answer: B, hint: 'Rearrange F = BIL to get B = F / (IL).', solution: `B = F / (IL) = ${fmt(F, 3)} / (${I} × ${L}) = <b>${fmt(B)} T</b>`, scene: { kind: 'bfield', mode: 'wire', lines: [`I = ${I} A`, `F = ${fmt(F, 3)} N`], ans: `B = ${fmt(B)} T` } });
+  }
+  if (t === 1) {
+    const q = R();
+    if (q < 0.33) { const v = rint(1, 9), B = rstep(0.1, 2, 0.1), F = QE * v * 1e5 * B; return num({ prompt: `A proton (charge 1.6 × 10⁻¹⁹ C) moves at <b>${v} × 10⁵ m/s</b> at right angles to a <b>${B} T</b> magnetic field. What force acts on it? ${ENOTE}`, unit: 'N', answer: F, hint: 'F = qvB.', solution: `F = qvB = 1.6×10⁻¹⁹ × ${v}×10⁵ × ${B} = <b>${sci(F)} N</b>`, scene: { kind: 'bfield', mode: 'orbit', lines: [`B = ${B} T`, 'F = qvB'], ans: `F = ${sci(F)} N` } }); }
+    if (q < 0.66) {
+      let B, I, L, th, F; do { B = rstep(0.2, 2, 0.1); I = rint(2, 20); L = rstep(0.2, 2, 0.1); th = pick([30, 45, 60]); F = B * I * L * Math.sin(rad(th)); } while (F < 0.3);
+      return num({ prompt: `A <b>${L} m</b> wire carries <b>${I} A</b> at <b>${th}°</b> to a <b>${B} T</b> magnetic field. What force acts on it?`, unit: 'N', answer: F, hint: 'Only the part of the wire across the field counts: F = BIL sinθ.', solution: `F = BIL sinθ = ${B} × ${I} × ${L} × sin${th}° = <b>${fmt(F)} N</b>`, scene: { kind: 'bfield', mode: 'angle', th, lines: [`B = ${B} T`, `I = ${I} A`], ans: `F = ${fmt(F)} N` } });
+    }
+    const I = rint(2, 50), r = rint(1, 20), B = 20 * I / r;
+    return num({ prompt: `A long straight wire carries <b>${I} A</b>. How strong is the magnetic field <b>${r} cm</b> from it, in microtesla? (μ₀ = 4π × 10⁻⁷ T·m/A)`, unit: 'μT', answer: B, hint: 'B = μ₀I / (2πr), with r in metres. Then 1 μT = 10⁻⁶ T.', solution: `B = 4π×10⁻⁷ × ${I} / (2π × ${r / 100}) = ${sci(B * 1e-6)} T = <b>${fmt(B)} μT</b>`, scene: { kind: 'bfield', mode: 'around', rl: `${r} cm`, lines: [`I = ${I} A`, 'B = μ₀I / (2πr)'], ans: `B = ${fmt(B)} μT` } });
+  }
+  const q = R();
+  if (q < 0.28) {
+    const el = R() < 0.5; let v, B, r;
+    do { v = rint(1, 9); B = el ? rint(1, 20) : rstep(0.1, 2, 0.1); r = el ? MEL * v * 1e7 / (QE * B * 1e-3) * 100 : MPR * v * 1e6 / (QE * B) * 100; } while (r < 0.3);
+    const who = el ? 'An electron (mass 9.11 × 10⁻³¹ kg' : 'A proton (mass 1.67 × 10⁻²⁷ kg', vs = `${v} × 10${el ? '⁷' : '⁶'} m/s`, Bs = el ? `${B} mT` : `${B} T`;
+    return num({ prompt: `${who}, charge 1.6 × 10⁻¹⁹ C) moves at <b>${vs}</b> at right angles to a <b>${Bs}</b> magnetic field. What is the radius of its circular path, in centimetres?`, unit: 'cm', answer: r, hint: 'The magnetic force is the centripetal force: qvB = mv² / r, so r = mv / (qB).', solution: `r = mv / (qB) = ${el ? '9.11×10⁻³¹' : '1.67×10⁻²⁷'} × ${v}×10${el ? '⁷' : '⁶'} / (1.6×10⁻¹⁹ × ${el ? `${B}×10⁻³` : B}) = ${fmt(r / 100, 4)} m = <b>${fmt(r)} cm</b>`, scene: { kind: 'bfield', mode: 'orbit', neg: el, lines: [`B = ${Bs}`, 'r = mv / (qB)'], ans: `r = ${fmt(r)} cm` } });
+  }
+  if (q < 0.52) {
+    let N, L, I, B; do { N = rint(2, 20) * 100; L = rint(10, 50); I = rstep(0.5, 5, 0.5); B = MU0 * N / (L / 100) * I * 1000; } while (B < 0.3);
+    return num({ prompt: `A solenoid has <b>${N} turns</b> wound evenly along <b>${L} cm</b> and carries <b>${I} A</b>. How strong is the field inside it, in millitesla? (μ₀ = 4π × 10⁻⁷ T·m/A)`, unit: 'mT', answer: B, hint: 'B = μ₀nI, where n is turns per metre: n = N / L.', solution: `n = ${N} / ${L / 100} = ${fmt(N / (L / 100))} turns/m<br>B = 4π×10⁻⁷ × ${fmt(N / (L / 100))} × ${I} = ${sci(B / 1000)} T = <b>${fmt(B)} mT</b>`, scene: { kind: 'bfield', mode: 'solenoid', nl: `${N} turns`, ll: `${L} cm`, lines: [`I = ${I} A`, 'B = μ₀nI'], ans: `B = ${fmt(B)} mT` } });
+  }
+  if (q < 0.76) { const E = rint(1, 9) * 1e4, B = rstep(0.1, 0.9, 0.1), v = E / B; return num({ prompt: `In a velocity selector, an electric field of <b>${sci(E, 2)} V/m</b> is crossed with a <b>${B} T</b> magnetic field. Ions of one speed pass straight through. What speed?`, unit: 'm/s', answer: v, hint: 'The ions go straight when the electric and magnetic forces balance: qE = qvB.', solution: `qE = qvB → v = E / B = ${sci(E, 2)} / ${B} = <b>${fmt(v)} m/s</b>`, scene: { kind: 'bfield', mode: 'straight', lines: [`B = ${B} T`, 'qE = qvB'], ans: `v = ${fmt(v)} m/s` } }); }
+  let m, L, B, I; do { m = rint(5, 50); L = rstep(0.2, 1, 0.1); B = rstep(0.1, 0.8, 0.1); I = m / 1000 * G / (B * L); } while (I < 0.3);
+  return num({ prompt: `A horizontal wire <b>${L} m</b> long has a mass of <b>${m} g</b>. It sits at right angles to a horizontal <b>${B} T</b> magnetic field. What current makes the magnetic force exactly support its weight?`, unit: 'A', answer: I, hint: 'Set the magnetic force equal to the weight: BIL = mg. Convert grams to kilograms.', solution: `BIL = mg → I = mg / (BL) = ${m / 1000} × 9.8 / (${B} × ${L}) = <b>${fmt(I)} A</b>`, scene: { kind: 'bfield', mode: 'wire', mg: true, still: true, lines: [`B = ${B} T`, 'BIL = mg'], ans: `I = ${fmt(I)} A` } });
+};
+
+GEN.induct = d => {
+  const t = tier(d);
+  if (R() < 0.22) return mcFrom('induct', t);
+  if (t === 0) {
+    if (R() < 0.55) { const Np = rint(1, 10) * 100, Ns = rint(1, 20) * 50, Vp = pick([12, 24, 120, 230, 240]), Vs = Vp * Ns / Np; return num({ prompt: `A transformer has <b>${Np} turns</b> on its primary coil and <b>${Ns} turns</b> on its secondary. The primary is connected to <b>${Vp} V</b> AC. What is the secondary voltage?`, unit: 'V', answer: Vs, hint: 'The voltages are in the same ratio as the turns: Vₛ / Vₚ = Nₛ / Nₚ.', solution: `Vₛ = Vₚ × Nₛ / Nₚ = ${Vp} × ${Ns} / ${Np} = <b>${fmt(Vs)} V</b>`, scene: { kind: 'induct', mode: 'trans', Np, Ns, left: [`${Np} turns`, `${Vp} V`], right: [`${Ns} turns`, '? V'], rightA: [`${Ns} turns`, `${fmt(Vs)} V`], lines: ['Vₛ / Vₚ = Nₛ / Nₚ'] } }); }
+    let B, A, F; do { B = rstep(0.1, 2, 0.1); A = rstep(0.1, 2, 0.1); F = B * A; } while (F < 0.3);
+    return num({ prompt: `A flat loop of area <b>${A} m²</b> faces a <b>${B} T</b> magnetic field head-on. What is the magnetic flux through it?`, unit: 'Wb', answer: F, hint: 'Facing the field head-on, Φ = BA.', solution: `Φ = BA = ${B} × ${A} = <b>${fmt(F)} Wb</b>`, scene: { kind: 'induct', mode: 'coil', lines: [`B = ${B} T`, 'Φ = BA'], ans: `Φ = ${fmt(F)} Wb` } });
+  }
+  if (t === 1) {
+    const q = R();
+    if (q < 0.28) {
+      let N, dF, dt, e; do { N = rint(1, 20) * 10; dF = rstep(0.01, 0.2, 0.01); dt = rstep(0.1, 2, 0.1); e = N * dF / dt; } while (e < 0.3);
+      return num({ prompt: `The flux through a <b>${N}-turn</b> coil changes by <b>${dF} Wb</b> in <b>${dt} s</b>. What is the size of the induced EMF?`, unit: 'V', answer: e, hint: 'Faraday’s law: ε = N ΔΦ / Δt.', solution: `ε = N ΔΦ / Δt = ${N} × ${dF} / ${dt} = <b>${fmt(e)} V</b>`, scene: { kind: 'induct', mode: 'coil', lines: [`N = ${N}`, 'ε = N ΔΦ / Δt'], ans: `ε = ${fmt(e)} V` } });
+    }
+    if (q < 0.54) {
+      let B, L, v, e; do { B = rstep(0.1, 1.5, 0.1); L = rstep(0.2, 2, 0.1); v = rint(2, 20); e = B * L * v; } while (e < 0.3);
+      return num({ prompt: `A metal rod <b>${L} m</b> long moves at <b>${v} m/s</b> straight across a <b>${B} T</b> magnetic field. What EMF appears between its ends?`, unit: 'V', answer: e, hint: 'ε = BLv.', solution: `ε = BLv = ${B} × ${L} × ${v} = <b>${fmt(e)} V</b>`, scene: { kind: 'induct', mode: 'rod', Ll: `${L} m`, lines: [`B = ${B} T`, `v = ${v} m/s`], ans: `ε = ${fmt(e)} V` } });
+    }
+    if (q < 0.77) { const V = pick([110, 120, 220, 230, 240]), pk = V * Math.SQRT2; return num({ prompt: `Mains electricity is quoted as <b>${V} V</b> rms. What is the peak voltage?`, unit: 'V', answer: pk, hint: 'V_rms = V_peak / √2, so V_peak = V_rms × √2.', solution: `V_peak = ${V} × √2 = <b>${fmt(pk)} V</b>`, scene: { kind: 'induct', mode: 'ac', lines: [`V_rms = ${V} V`], ans: `V_peak = ${fmt(pk)} V` } }); }
+    const Np = pick([1200, 2400, 4800]), Vs = pick([5, 6, 9, 12, 24]), Ns = Np * Vs / 240;
+    return num({ prompt: `A charger’s transformer takes <b>240 V</b> on a primary coil of <b>${Np} turns</b> and must give out <b>${Vs} V</b>. How many turns does the secondary need?`, unit: 'turns', answer: Ns, hint: 'Nₛ / Nₚ = Vₛ / Vₚ.', solution: `Nₛ = Nₚ × Vₛ / Vₚ = ${Np} × ${Vs} / 240 = <b>${fmt(Ns)} turns</b>`, scene: { kind: 'induct', mode: 'trans', Np, Ns, left: [`${Np} turns`, '240 V'], right: ['? turns', `${Vs} V`], rightA: [`${fmt(Ns)} turns`, `${Vs} V`], lines: ['Nₛ / Nₚ = Vₛ / Vₚ'] } });
+  }
+  const q = R();
+  if (q < 0.25) { const Vs = pick([5, 9, 12, 19]), Is = rstep(0.5, 4, 0.5), Ip = Vs * Is / 230 * 1000; return num({ prompt: `An ideal transformer runs from <b>230 V</b> mains and supplies <b>${Is} A</b> at <b>${Vs} V</b> to a laptop. What current does it draw from the mains, in milliamps?`, unit: 'mA', answer: Ip, hint: 'Power in = power out: VₚIₚ = VₛIₛ.', solution: `Iₚ = VₛIₛ / Vₚ = ${Vs} × ${Is} / 230 = ${fmt(Ip / 1000, 4)} A = <b>${fmt(Ip)} mA</b>`, scene: { kind: 'induct', mode: 'trans', Np: 230, Ns: Vs * 4, left: ['230 V', '? mA'], right: [`${Vs} V`, `${Is} A`], leftA: ['230 V', `${fmt(Ip)} mA`], lines: ['VₚIₚ = VₛIₛ'] } }); }
+  if (q < 0.5) {
+    let N, A, dB, dt, e; do { N = rint(1, 10) * 50; A = rint(10, 100); dB = rstep(0.1, 1, 0.1); dt = rstep(0.05, 0.5, 0.05); e = N * A * 1e-4 * dB / dt; } while (e < 0.3);
+    return num({ prompt: `A coil of <b>${N} turns</b>, each of area <b>${A} cm²</b>, faces a magnetic field head-on. The field rises by <b>${dB} T</b> in <b>${dt} s</b>. What EMF is induced?`, unit: 'V', answer: e, hint: 'ΔΦ = A × ΔB, with the area in m² (1 cm² = 10⁻⁴ m²). Then ε = N ΔΦ / Δt.', solution: `ΔΦ = ${A}×10⁻⁴ × ${dB} = ${fmt(A * 1e-4 * dB, 4)} Wb<br>ε = ${N} × ${fmt(A * 1e-4 * dB, 4)} / ${dt} = <b>${fmt(e)} V</b>`, scene: { kind: 'induct', mode: 'coil', lines: [`N = ${N}`, 'ε = N A ΔB / Δt'], ans: `ε = ${fmt(e)} V` } });
+  }
+  if (q < 0.75) {
+    let B, L, v, Rr, I; do { B = rstep(0.2, 1.5, 0.1); L = rstep(0.2, 1.5, 0.1); v = rint(2, 20); Rr = rint(1, 10); I = B * L * v / Rr; } while (I < 0.3);
+    return num({ prompt: `A rod <b>${L} m</b> long slides at <b>${v} m/s</b> along metal rails, straight across a <b>${B} T</b> field. The rails are joined by a <b>${Rr} Ω</b> resistor. What current flows?`, unit: 'A', answer: I, hint: 'The moving rod is the battery: ε = BLv. Then I = ε / R.', solution: `ε = BLv = ${B} × ${L} × ${v} = ${fmt(B * L * v)} V<br>I = ε / R = ${fmt(B * L * v)} / ${Rr} = <b>${fmt(I)} A</b>`, scene: { kind: 'induct', mode: 'rod', Ll: `${L} m`, Rl: `${Rr} Ω`, lines: [`B = ${B} T`, `v = ${v} m/s`], ans: `I = ${fmt(I)} A` } });
+  }
+  const P = rint(1, 10) * 100, V = pick([11, 33, 132]), Rr = rint(2, 20), I = P / V, loss = I * I * Rr;
+  return num({ prompt: `A power station sends <b>${P} kW</b> along a line at <b>${V} kV</b>. The cables have a total resistance of <b>${Rr} Ω</b>. How much power is wasted heating the cables?`, unit: 'W', answer: loss, hint: 'Find the current from P = VI (kW ÷ kV gives amps). The loss is I²R.', solution: `I = P / V = ${P}×10³ / ${V}×10³ = ${fmt(I)} A<br>loss = I²R = ${fmt(I)}² × ${Rr} = <b>${fmt(loss)} W</b>`, scene: { kind: 'induct', mode: 'line', Rl: `${Rr} Ω`, lines: [`${P} kW at ${V} kV`, 'loss = I²R'], ans: `loss = ${fmt(loss)} W` } });
 };
 /* ---------- simulation bench ---------- */
 const cv = $('#scene');
@@ -1629,6 +1820,192 @@ DRAW.lens = (c, W, H, p, k, rev, col) => {
   }
   readout(c, [`f = ${p.f} cm`, rev ? (di > 0 ? 'real, upside down' : 'virtual, upright') : 'image = ?'], col);
 };
+
+/* ---------- electromagnetism scenes ---------- */
+function crosses(c, x0, y0, x1, y1, col) {
+  c.strokeStyle = col.muted; c.lineWidth = 1.2; c.globalAlpha = 0.5;
+  for (let x = x0; x <= x1; x += 34) for (let y = y0; y <= y1; y += 34) { c.beginPath(); c.moveTo(x - 4, y - 4); c.lineTo(x + 4, y + 4); c.moveTo(x + 4, y - 4); c.lineTo(x - 4, y + 4); c.stroke(); }
+  c.globalAlpha = 1;
+}
+function chev(c, x, y, ang, color, s = 5) {
+  c.strokeStyle = color; c.lineWidth = 1.5; c.beginPath();
+  c.moveTo(x - s * Math.cos(ang - 0.6), y - s * Math.sin(ang - 0.6)); c.lineTo(x, y); c.lineTo(x - s * Math.cos(ang + 0.6), y - s * Math.sin(ang + 0.6)); c.stroke();
+}
+function chargeDot(c, x, y, q, label, col, r = 16) {
+  c.fillStyle = q > 0 ? col.accent : col.blue; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+  text(c, q > 0 ? '+' : '−', x, y + 1, col.bg, 'center', 700, r, col);
+  if (label) { c.font = `600 12px ${col.mono}`; const w = c.measureText(label).width + 8; c.fillStyle = col.bg; c.globalAlpha = 0.85; c.fillRect(x - w / 2, y + r + 5, w, 18); c.globalAlpha = 1; text(c, label, x, y + r + 14, col.ink, 'center', 600, 12, col); }
+}
+function coilShape(c, x, y, w, h, n, col) {
+  c.strokeStyle = col.warn; c.lineWidth = 2;
+  for (let i = 0; i < n; i++) { c.beginPath(); c.ellipse(x + w * (i + 0.5) / n, y, w / n * 0.42, h / 2, 0, 0, 7); c.stroke(); }
+}
+const emLines = (p, rev) => [...(p.lines || []), rev ? p.ans : null];
+
+DRAW.charges = (c, W, H, p, k, rev, col) => {
+  const cy = H * 0.58, g = rev ? 0.35 + 0.65 * k : 0;
+  if (p.q2 == null) {
+    const cx = W * 0.36, px = Math.min(W - 50, cx + Math.min(W, H) * 0.5), out = p.q1 > 0, r1 = Math.min(W, H) * 0.36;
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6 + 0.26, ca = Math.cos(a), sa = Math.sin(a);
+      c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(cx + 22 * ca, cy + 22 * sa); c.lineTo(cx + r1 * ca, cy + r1 * sa); c.stroke();
+      chev(c, cx + r1 * 0.65 * ca, cy + r1 * 0.65 * sa, out ? a : a + Math.PI, col.muted);
+    }
+    chargeDot(c, cx, cy, p.q1, p.l1, col);
+    if (p.rl) {
+      c.strokeStyle = col.ink; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(cx + 18, cy); c.lineTo(px, cy); c.stroke(); c.setLineDash([]);
+      text(c, p.rl, (cx + px) / 2 + 8, cy - 12, col.ink, 'center', 600, 12, col);
+      if (rev) arrow(c, px, cy, px + (out ? 1 : -1) * 44 * g, cy, col.good, 'E', col);
+      c.fillStyle = col.ink; c.beginPath(); c.arc(px, cy, 4, 0, 7); c.fill(); text(c, 'P', px, cy + 16, col.ink, 'center', 600, 12, col);
+    }
+  } else {
+    const att = p.q1 * p.q2 < 0, mid = p.mid != null, sh = rev && !mid ? k * 10 * (att ? 1 : -1) : 0;
+    const xa = W * 0.22 + sh, xb = W * 0.78 - sh, xm = W * 0.5 + (rev && mid ? k * 12 : 0);
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(xa, cy); c.lineTo(xb, cy); c.stroke(); c.setLineDash([]);
+    if (p.rl) (mid ? [0.36, 0.64] : [0.5]).forEach(f => text(c, p.rl, W * f, cy - 12, col.ink, 'center', 600, 12, col));
+    if (rev && !mid) { const s = att ? 1 : -1; arrow(c, xa, cy - 28, xa + s * 50 * g, cy - 28, col.good, 'F', col); arrow(c, xb, cy - 28, xb - s * 50 * g, cy - 28, col.good, 'F', col); }
+    if (rev && mid) arrow(c, xm, cy - 34, xm + 50 * g, cy - 34, col.good, 'net F', col);
+    chargeDot(c, xa, cy, p.q1, p.l1, col); chargeDot(c, xb, cy, p.q2, p.l2, col);
+    if (mid) chargeDot(c, xm, cy, p.mid, p.lm, col, 12);
+  }
+  readout(c, emLines(p, rev), col);
+};
+
+DRAW.plates = (c, W, H, p, k, rev, col) => {
+  const x0 = W * 0.3, x1 = W * 0.84, yt = H * 0.32, yb = H * 0.84, n = 5;
+  for (let i = 0; i < n; i++) {
+    const x = x0 + (x1 - x0) * (i + 0.5) / n;
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(x, yt + 4); c.lineTo(x, yb - 4); c.stroke();
+    chev(c, x, yt + (yb - yt) * ((0.5 + (rev ? k : 0)) % 1 * 0.8 + 0.1), Math.PI / 2, col.muted);
+  }
+  c.fillStyle = col.accent; c.fillRect(x0, yt - 6, x1 - x0, 6); c.fillStyle = col.blue; c.fillRect(x0, yb, x1 - x0, 6);
+  text(c, '+  +  +  +  +', (x0 + x1) / 2, yt - 16, col.accent, 'center', 700, 13, col);
+  text(c, '−  −  −  −  −', (x0 + x1) / 2, yb + 17, col.blue, 'center', 700, 13, col);
+  c.strokeStyle = col.ink; c.lineWidth = 1; c.beginPath(); c.moveTo(x0 - 14, yt); c.lineTo(x0 - 14, yb); c.moveTo(x0 - 19, yt); c.lineTo(x0 - 9, yt); c.moveTo(x0 - 19, yb); c.lineTo(x0 - 9, yb); c.stroke();
+  text(c, p.dl || p.V, x0 - 22, (yt + yb) / 2, col.ink, 'right', 600, 12, col);
+  if (p.dl) text(c, p.V, x1 + 6, yt - 3, col.ink, 'left', 600, 12, col);
+  if (p.q) {
+    const pos = p.q > 0, ys = pos ? yt + 20 : yb - 20, ye = pos ? yb - 16 : yt + 16, y = ys + (ye - ys) * (rev ? k * k : 0), x = (x0 + x1) / 2;
+    if (rev && k < 0.98) arrow(c, x + 22, y, x + 22, y + (pos ? 1 : -1) * 36, col.good, 'F', col);
+    chargeDot(c, x, y, p.q, null, col, 11);
+  }
+  readout(c, emLines(p, rev), col);
+};
+
+DRAW.bfield = (c, W, H, p, k, rev, col) => {
+  const m = p.mode, cx = W * 0.56, cy = H * 0.58, g = rev ? 0.35 + 0.65 * k : 0;
+  if (m === 'wire' || m === 'orbit' || m === 'straight') { crosses(c, 30, 28, W - 14, H - 26, col); text(c, '× B into the page', W - 12, H - 12, col.muted, 'right', 400, 11, col); }
+  if (m === 'wire') {
+    const y = cy - (rev && !p.still ? k * 18 : 0), xa = W * 0.14, xb = W * 0.92;
+    c.strokeStyle = col.warn; c.lineWidth = 5; c.beginPath(); c.moveTo(xa, y); c.lineTo(xb, y); c.stroke();
+    arrow(c, cx - 34, y + 16, cx + 26, y + 16, col.ink, 'I', col);
+    if (rev || p.mg) arrow(c, cx - 60, y - 5, cx - 60, y - 5 - (p.mg && !rev ? 44 : 50 * g), col.good, p.mg ? 'BIL' : 'F', col);
+    if (p.mg) arrow(c, cx + 70, y + 5, cx + 70, y + 49, col.accent, 'mg', col);
+  } else if (m === 'angle') {
+    for (let i = 0; i < 5; i++) { const y = H * 0.36 + i * (H * 0.5) / 4; c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(24, y); c.lineTo(W - 20, y); c.stroke(); chev(c, W * (0.3 + (i % 2) * 0.4), y, 0, col.muted); }
+    text(c, 'B', W - 14, H * 0.36 - 10, col.muted, 'right', 600, 12, col);
+    const a = rad(p.th), L = Math.min(W, H) * 0.34, ca = Math.cos(a), sa = Math.sin(a);
+    c.strokeStyle = col.warn; c.lineWidth = 5; c.beginPath(); c.moveTo(cx - L * ca, cy + L * sa); c.lineTo(cx + L * ca, cy - L * sa); c.stroke();
+    arrow(c, cx + L * 0.35 * ca + 12 * sa, cy - L * 0.35 * sa + 12 * ca, cx + L * 0.9 * ca + 12 * sa, cy - L * 0.9 * sa + 12 * ca, col.ink, 'I', col);
+    c.strokeStyle = col.ink; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, 30, -a, 0); c.stroke();
+    text(c, `${p.th}°`, cx + 38, cy - 12, col.ink, 'left', 600, 12, col);
+    if (rev) { c.strokeStyle = col.good; c.lineWidth = 2; c.globalAlpha = g; c.beginPath(); c.arc(cx - 44, cy + 34, 9, 0, 7); c.moveTo(cx - 50, cy + 28); c.lineTo(cx - 38, cy + 40); c.moveTo(cx - 38, cy + 28); c.lineTo(cx - 50, cy + 40); c.stroke(); c.globalAlpha = 1; text(c, 'F into the page', cx - 30, cy + 34, col.good, 'left', 600, 12, col); }
+  } else if (m === 'orbit') {
+    const Rr = Math.min(W, H) * 0.28, dir = p.neg ? -1 : 1, phi = 1.1 + dir * (rev ? k * Math.PI * 3 : 0);
+    const x = cx + Rr * Math.cos(phi), y = cy - Rr * Math.sin(phi);
+    c.strokeStyle = col.ink; c.lineWidth = 1; c.setLineDash([5, 5]); c.beginPath(); c.arc(cx, cy, Rr, 0, 7); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); text(c, 'r', (cx + x) / 2 + 8, (cy + y) / 2 + 2, col.ink, 'left', 600, 12, col);
+    arrow(c, x, y, x - dir * Math.sin(phi) * 46, y - dir * Math.cos(phi) * 46, col.blue, 'v', col);
+    arrow(c, x, y, x + (cx - x) * 0.5, y + (cy - y) * 0.5, col.good, 'F', col);
+    chargeDot(c, x, y, p.neg ? -1 : 1, null, col, 10);
+  } else if (m === 'straight') {
+    const yt = cy - 52, yb = cy + 52, xa = W * 0.2, xb = W * 0.9, x = xa + (xb - xa) * (rev ? k : 0.12);
+    c.fillStyle = col.accent; c.fillRect(xa, yt - 5, xb - xa, 5); c.fillStyle = col.blue; c.fillRect(xa, yb, xb - xa, 5);
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(xa, cy); c.lineTo(xb, cy); c.stroke(); c.setLineDash([]);
+    arrow(c, x, cy, x, cy - 38, col.good, 'qvB', col); arrow(c, x, cy, x, cy + 38, col.accent, 'qE', col);
+    if (x < xb - 50) arrow(c, x + 12, cy, x + 48, cy, col.blue, 'v', col);
+    chargeDot(c, x, cy, 1, null, col, 10);
+  } else if (m === 'around') {
+    const b = Math.min(W, H) * 0.14, px = cx + b * 1.8;
+    [1, 1.8, 2.6].forEach(f => { c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, b * f, 0, 7); c.stroke(); chev(c, cx, cy - b * f, Math.PI, col.muted); chev(c, cx, cy + b * f, 0, col.muted); });
+    c.strokeStyle = col.ink; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(cx + 10, cy); c.lineTo(px, cy); c.stroke(); c.setLineDash([]);
+    if (p.rl) text(c, p.rl, (cx + px) / 2 + 4, cy + 13, col.ink, 'center', 600, 12, col);
+    c.fillStyle = col.bg; c.strokeStyle = col.warn; c.lineWidth = 3; c.beginPath(); c.arc(cx, cy, 10, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = col.warn; c.beginPath(); c.arc(cx, cy, 3, 0, 7); c.fill();
+    text(c, 'I out of the page', cx, cy - b * 2.6 - 12, col.muted, 'center', 400, 11, col);
+    if (rev) { arrow(c, px, cy, px, cy - 46 * g, col.good, 'B', col); const a = k * Math.PI * 2; c.fillStyle = col.good; c.beginPath(); c.arc(cx + b * 1.8 * Math.cos(a), cy - b * 1.8 * Math.sin(a), 4, 0, 7); c.fill(); }
+    c.fillStyle = col.ink; c.beginPath(); c.arc(px, cy, 4, 0, 7); c.fill(); text(c, 'P', px + 10, cy + 12, col.ink, 'left', 600, 12, col);
+  } else if (m === 'solenoid') {
+    const xa = W * 0.2, w = W * 0.62, h = H * 0.34;
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(W * 0.1, cy); c.lineTo(W * 0.94, cy); c.stroke(); c.setLineDash([]);
+    if (rev) { arrow(c, W * 0.1, cy, W * 0.1 + W * 0.84 * g, cy, col.good, '', col); text(c, 'B', W * 0.94, cy - 12, col.good, 'right', 600, 12, col); for (let i = 0; i < 4; i++) chev(c, xa + w * ((i / 4 + k) % 1), cy - h * 0.22, 0, col.good), chev(c, xa + w * ((i / 4 + k + 0.1) % 1), cy + h * 0.22, 0, col.good); }
+    coilShape(c, xa, cy, w, h, 12, col);
+    if (p.nl) text(c, p.nl, xa + w / 2, cy - h / 2 - 12, col.ink, 'center', 600, 12, col);
+    if (p.ll) { c.strokeStyle = col.ink; c.lineWidth = 1; c.beginPath(); c.moveTo(xa, cy + h / 2 + 10); c.lineTo(xa + w, cy + h / 2 + 10); c.stroke(); text(c, p.ll, xa + w / 2, cy + h / 2 + 22, col.ink, 'center', 600, 12, col); }
+  }
+  readout(c, emLines(p, rev), col);
+};
+
+DRAW.induct = (c, W, H, p, k, rev, col) => {
+  const m = p.mode, cy = H * 0.58;
+  if (m === 'trans') {
+    const x0 = W * 0.34, x1 = W * 0.66, y0 = H * 0.3, y1 = H * 0.86, t = 20;
+    c.fillStyle = col.muted; c.globalAlpha = 0.3; c.fillRect(x0, y0, x1 - x0, y1 - y0); c.globalAlpha = 1;
+    c.fillStyle = col.bg; c.fillRect(x0 + t, y0 + t, x1 - x0 - 2 * t, y1 - y0 - 2 * t);
+    c.strokeStyle = col.ink; c.lineWidth = 1.5; c.strokeRect(x0, y0, x1 - x0, y1 - y0); c.strokeRect(x0 + t, y0 + t, x1 - x0 - 2 * t, y1 - y0 - 2 * t);
+    const mx = Math.max(p.Np, p.Ns), turns = n => clamp(Math.round(9 * n / mx), 2, 9);
+    const wind = (x, n, color) => { c.strokeStyle = color; c.lineWidth = 3; const ya = y0 + t + 8, yb = y1 - t - 8; for (let i = 0; i < n; i++) { const y = n === 1 ? (ya + yb) / 2 : ya + (yb - ya) * i / (n - 1); c.beginPath(); c.moveTo(x - 5, y + 3); c.lineTo(x + t + 5, y - 3); c.stroke(); } };
+    wind(x0, turns(p.Np), col.warn); wind(x1 - t, turns(p.Ns), col.blue);
+    const L = rev && p.leftA ? p.leftA : p.left, Rg = rev && p.rightA ? p.rightA : p.right;
+    L.forEach((s, i) => text(c, s, x0 - 12, cy - 9 + i * 18, s.includes('?') ? col.accent : col.ink, 'right', 600, 12, col));
+    Rg.forEach((s, i) => text(c, s, x1 + 12, cy - 9 + i * 18, s.includes('?') ? col.accent : col.ink, 'left', 600, 12, col));
+    text(c, 'primary', x0 - 12, y0 - 2, col.muted, 'right', 400, 11, col); text(c, 'secondary', x1 + 12, y0 - 2, col.muted, 'left', 400, 11, col);
+    if (rev) {
+      const a = x0 + t / 2, b = x1 - t / 2, u = y0 + t / 2, v = y1 - t / 2, per = 2 * (b - a + v - u);
+      for (let i = 0; i < 12; i++) { let d = ((i / 12) + k * 1.5) % 1 * per, x, y; if (d < b - a) { x = a + d; y = u; } else if ((d -= b - a) < v - u) { x = b; y = u + d; } else if ((d -= v - u) < b - a) { x = b - d; y = v; } else { d -= b - a; x = a; y = v - d; } c.fillStyle = col.good; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); }
+    }
+  } else if (m === 'rod') {
+    const ya = cy - 48, yb = cy + 48, xa = W * 0.16, xb = W * 0.94, x = W * 0.34 + (rev ? k * W * 0.44 : 0);
+    crosses(c, xa + 30, ya + 14, xb - 6, yb - 10, col); text(c, '× B into the page', W - 12, H - 12, col.muted, 'right', 400, 11, col);
+    c.strokeStyle = col.ink; c.lineWidth = 2.5; c.beginPath(); c.moveTo(xb, ya); c.lineTo(xa, ya); c.lineTo(xa, yb); c.lineTo(xb, yb); c.stroke();
+    c.fillStyle = col.bg; c.fillRect(xa - 9, cy - 22, 18, 44); c.strokeRect(xa - 9, cy - 22, 18, 44);
+    text(c, p.Rl || 'R', xa + 16, cy, col.ink, 'left', 600, 12, col);
+    c.strokeStyle = col.warn; c.lineWidth = 6; c.beginPath(); c.moveTo(x, ya - 9); c.lineTo(x, yb + 9); c.stroke();
+    if (p.Ll) text(c, p.Ll, x - 10, cy + 24, col.ink, 'right', 600, 12, col);
+    if (x < xb - 60) arrow(c, x + 6, cy, x + 52, cy, col.blue, 'v', col);
+    if (rev) for (let i = 0; i < 3; i++) chev(c, x - (x - xa) * ((i / 3 + k * 2) % 1), ya, Math.PI, col.good, 6), chev(c, xa + (x - xa) * ((i / 3 + k * 2) % 1), yb, 0, col.good, 6);
+  } else if (m === 'coil') {
+    const xc = W * 0.46, w = W * 0.26, h = H * 0.36, gx = W * 0.86, e = rev ? k * k * (3 - 2 * k) : 0, mx = W * 0.05 + e * (xc - W * 0.05 - 30);
+    c.strokeStyle = col.ink; c.lineWidth = 1.5; c.beginPath(); c.moveTo(xc + 6, cy + h / 2); c.lineTo(xc + 6, cy + h / 2 + 14); c.lineTo(gx, cy + h / 2 + 14); c.lineTo(gx, cy + 20); c.moveTo(xc + w - 6, cy - h / 2); c.lineTo(xc + w - 6, cy - h / 2 - 12); c.lineTo(gx, cy - h / 2 - 12); c.lineTo(gx, cy - 20); c.stroke();
+    c.fillStyle = col.blue; c.fillRect(mx, cy - 13, 34, 26); c.fillStyle = col.accent; c.fillRect(mx + 34, cy - 13, 34, 26);
+    text(c, 'S', mx + 17, cy + 1, col.bg, 'center', 700, 13, col); text(c, 'N', mx + 51, cy + 1, col.bg, 'center', 700, 13, col);
+    coilShape(c, xc, cy, w, h, 8, col);
+    if (rev && k < 0.96) arrow(c, mx + 20, cy - 26, mx + 62, cy - 26, col.blue, 'v', col);
+    c.fillStyle = col.bg; c.strokeStyle = col.ink; c.lineWidth = 2; c.beginPath(); c.arc(gx, cy, 20, 0, 7); c.fill(); c.stroke();
+    const na = (rev ? Math.sin(Math.PI * k) : 0) * 0.95;
+    c.strokeStyle = col.accent; c.lineWidth = 2.5; c.beginPath(); c.moveTo(gx, cy + 8); c.lineTo(gx + 20 * Math.sin(na), cy + 8 - 20 * Math.cos(na)); c.stroke();
+    text(c, 'meter', gx, cy + 34, col.muted, 'center', 400, 11, col);
+  } else if (m === 'ac') {
+    const xa = W * 0.12, xb = W * 0.92, A = H * 0.24, f = x => cy - A * Math.sin((x - xa) / (xb - xa) * Math.PI * 4);
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(xa, cy); c.lineTo(xb, cy); c.stroke();
+    c.setLineDash([5, 4]); c.strokeStyle = col.accent; c.beginPath(); c.moveTo(xa, cy - A); c.lineTo(xb, cy - A); c.stroke();
+    c.strokeStyle = col.good; c.beginPath(); c.moveTo(xa, cy - A * Math.SQRT1_2); c.lineTo(xb, cy - A * Math.SQRT1_2); c.stroke(); c.setLineDash([]);
+    text(c, 'peak', xb, cy - A - 10, col.accent, 'right', 600, 12, col); text(c, 'rms', xb, cy - A * Math.SQRT1_2 + 11, col.good, 'right', 600, 12, col);
+    c.strokeStyle = col.blue; c.lineWidth = 2.5; c.beginPath(); for (let x = xa; x <= xb; x += 2) x === xa ? c.moveTo(x, f(x)) : c.lineTo(x, f(x)); c.stroke();
+    if (rev) { const x = xa + (xb - xa) * k; c.fillStyle = col.ink; c.beginPath(); c.arc(x, f(x), 5, 0, 7); c.fill(); }
+  } else if (m === 'line') {
+    const xa = W * 0.2, xb = W * 0.82, yw = cy - 34, gy = cy + 46;
+    ground(c, W, gy, col);
+    c.fillStyle = col.blue; c.fillRect(xa - 44, gy - 46, 44, 46); c.fillStyle = col.warn; c.fillRect(xb, gy - 34, 40, 34);
+    text(c, 'station', xa - 22, gy + 12, col.muted, 'center', 400, 11, col); text(c, 'town', xb + 20, gy + 12, col.muted, 'center', 400, 11, col);
+    c.strokeStyle = col.ink; c.lineWidth = 2;
+    for (const f of [0.33, 0.67]) { const x = xa + (xb - xa) * f; c.beginPath(); c.moveTo(x - 12, gy); c.lineTo(x, yw - 6); c.lineTo(x + 12, gy); c.moveTo(x - 14, yw); c.lineTo(x + 14, yw); c.stroke(); }
+    c.lineWidth = 1.5; c.beginPath(); c.moveTo(xa, gy - 40); c.lineTo(xa + (xb - xa) * 0.33, yw); c.lineTo(xa + (xb - xa) * 0.67, yw); c.lineTo(xb, gy - 30); c.stroke();
+    if (p.Rl) text(c, `cables: ${p.Rl}`, (xa + xb) / 2, yw - 14, col.ink, 'center', 600, 12, col);
+    if (rev) for (let i = 0; i < 5; i++) { const x = xa + (xb - xa) * (0.33 + 0.34 * ((i / 5 + k * 2) % 1)); c.fillStyle = col.accent; c.beginPath(); c.arc(x, yw, 3.5, 0, 7); c.fill(); }
+  }
+  readout(c, emLines(p, rev), col);
+};
 /* ---------- persistence ---------- */
 const UNLOCK = 4, MASTER = 7, RUN_LEN = 6, REVIEW_MAX = 40;
 const KEY = 'launchlab.v1';
@@ -1639,7 +2016,9 @@ function load() {
     const j = JSON.parse(localStorage.getItem(KEY));
     if (j && j.topics) {
       const f = fresh(); Object.assign(f, j);
-      for (const t of TOPICS) if (!f.topics[t.id]) f.topics[t.id] = freshTopic();
+      // Stations added after this save was made start at the saved grade's level, or at the bottom if no grade was picked.
+      const gr = GRADES.find(x => x.g === f.grade);
+      for (const t of TOPICS) if (!f.topics[t.id]) { const r = gr ? gr.r[GRADE_ORDER.indexOf(t.id)] : 1.5; f.topics[t.id] = { r, n: 0, c: 0, hist: [r] }; }
       f.read = f.read || {}; f.review = Array.isArray(f.review) ? f.review : []; f.fixed = f.fixed || 0;
       if (typeof f.adaptive !== 'boolean') f.adaptive = true;
       // Saves from before grade placement existed: keep their progress and skip the picker if they've played.
@@ -1668,7 +2047,7 @@ const BADGES = [
   { id: 'fixer', m: '↺', name: 'Second Look', desc: 'Fix 10 problems from your review queue.' },
   { id: 'master', m: '7', name: 'Specialist', desc: 'Reach skill 7 at any station.' },
   { id: 'unit', m: 'U', name: 'Unit Complete', desc: 'Master every station in one unit.' },
-  { id: 'allopen', m: '13', name: 'Full Lab', desc: 'Unlock all 13 stations.' },
+  { id: 'allopen', m: '16', name: 'Full Lab', desc: 'Unlock all 16 stations.' },
   { id: 'scholar', m: 'Σ', name: 'Scholar', desc: 'Read every lesson.' },
   { id: 'grand', m: '★', name: 'Polymath', desc: 'Reach skill 7 at every station.' },
 ];

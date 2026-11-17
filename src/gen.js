@@ -345,3 +345,116 @@ GEN.optics = d => {
   const d0 = rint(2, f - 1), di = 1 / (1 / f - 1 / d0);
   return num({ prompt: `A magnifying glass has <b>f = ${f} cm</b>. An insect is <b>${d0} cm</b> away. What is the image distance? (Give a negative number for a virtual image.)`, unit: 'cm', answer: di, hint: 'Use 1/dᵢ = 1/f − 1/d₀. With d₀ < f the answer is negative.', solution: `1/dᵢ = 1/${f} − 1/${d0} = ${fmt(1 / f - 1 / d0, 4)}<br>dᵢ = <b>${fmt(di)} cm</b> (virtual, upright, magnified ×${fmt(-di / d0)})`, scene: { kind: 'lens', f, d0 } });
 };
+
+/* ---------- electromagnetism ---------- */
+const ENOTE = 'Use e for powers of ten, e.g. 3.2e-14.';
+const KNOTE = '(k = 9.0 × 10⁹ N·m²/C²)';
+const sgn = q => (q > 0 ? '+' : '−') + Math.abs(q);
+
+GEN.estat = d => {
+  const t = tier(d);
+  if (R() < 0.22) return mcFrom('estat', t);
+  if (t === 0) {
+    const q = R();
+    if (q < 0.35) { const n = rint(1, 9), Q = n * 1.6; return num({ prompt: `A balloon rubbed on a jumper picks up <b>${n} × 10¹³</b> extra electrons. How much charge is that, in microcoulombs? Give the size only. (e = 1.6 × 10⁻¹⁹ C)`, unit: 'μC', answer: Q, hint: 'Q = ne. Then 1 μC = 10⁻⁶ C.', solution: `Q = ne = ${n}×10¹³ × 1.6×10⁻¹⁹ = ${fmt(Q)}×10⁻⁶ C = <b>${fmt(Q)} μC</b>`, scene: { kind: 'charges', q1: -1, l1: 'balloon', lines: ['Q = ne'], ans: `Q = ${fmt(Q)} μC` } }); }
+    if (q < 0.7) { const V = pick([1.5, 3, 6, 9, 12, 24]), Q = rint(5, 200); return num({ prompt: `A <b>${V} V</b> battery moves <b>${Q} C</b> of charge around a circuit. How much energy does it transfer?`, unit: 'J', answer: V * Q, hint: 'Voltage is energy per coulomb: W = qV.', solution: `W = qV = ${Q} × ${V} = <b>${fmt(V * Q)} J</b>`, scene: { kind: 'plates', V: `${V} V`, q: 1, lines: ['W = qV'], ans: `W = ${fmt(V * Q)} J` } }); }
+    const qq = rint(2, 20), E = rint(2, 40), F = qq * E;
+    return num({ prompt: `A <b>+${qq} μC</b> charge sits in an electric field of <b>${E} kN/C</b>. What force acts on it, in millinewtons?`, unit: 'mN', answer: F, hint: 'F = qE. Convert to C and N/C first, or notice that μC × kN/C gives mN.', solution: `F = qE = ${qq}×10⁻⁶ × ${E}×10³ = ${fmt(F)}×10⁻³ N = <b>${fmt(F)} mN</b>`, scene: { kind: 'plates', V: `${E} kN/C`, q: 1, lines: ['F = qE'], ans: `F = ${fmt(F)} mN` } });
+  }
+  if (t === 1) {
+    const q = R();
+    if (q < 0.4) {
+      let q1, q2, r, F; do { q1 = rint(1, 9); q2 = rint(1, 9); r = rstep(0.1, 0.6, 0.05); F = KE * q1 * q2 * 1e-12 / (r * r); } while (F < 0.3);
+      const s2 = pick([1, -1]);
+      return num({ prompt: `Charges of <b>+${q1} μC</b> and <b>${sgn(s2 * q2)} μC</b> are <b>${r} m</b> apart. What is the size of the force between them? ${KNOTE}`, unit: 'N', answer: F, hint: 'Coulomb’s law: F = kq₁q₂ / r². Convert μC to C, and leave the signs out to get the size.', solution: `F = 9.0×10⁹ × ${q1}×10⁻⁶ × ${q2}×10⁻⁶ / ${r}² = <b>${fmt(F)} N</b> (${s2 > 0 ? 'repulsive' : 'attractive'})`, scene: { kind: 'charges', q1, q2: s2 * q2, l1: `+${q1} μC`, l2: `${sgn(s2 * q2)} μC`, rl: `${r} m`, lines: ['F = kq₁q₂ / r²'], ans: `F = ${fmt(F)} N` } });
+    }
+    if (q < 0.7) { const Q = rint(1, 9) * 10, r = rstep(0.1, 0.5, 0.1), E = KE * Q * 1e-9 / (r * r); return num({ prompt: `What is the electric field strength <b>${r} m</b> from a <b>+${Q} nC</b> point charge? ${KNOTE}`, unit: 'N/C', answer: E, hint: 'E = kQ / r², with 1 nC = 10⁻⁹ C.', solution: `E = kQ / r² = 9.0×10⁹ × ${Q}×10⁻⁹ / ${r}² = <b>${fmt(E)} N/C</b>, pointing away from the charge`, scene: { kind: 'charges', q1: 1, l1: `+${Q} nC`, rl: `${r} m`, lines: ['E = kQ / r²'], ans: `E = ${fmt(E)} N/C` } }); }
+    const V = rint(1, 20) * 50, dm = rint(2, 50), E = V / (dm / 1000);
+    return num({ prompt: `Two parallel plates <b>${dm} mm</b> apart have <b>${V} V</b> across them. What is the electric field between them?`, unit: 'V/m', answer: E, hint: 'E = V / d, with d in metres.', solution: `E = V / d = ${V} / ${dm / 1000} = <b>${fmt(E)} V/m</b>`, scene: { kind: 'plates', V: `${V} V`, dl: `${dm} mm`, q: 1, lines: ['E = V / d'], ans: `E = ${fmt(E)} V/m` } });
+  }
+  const q = R();
+  if (q < 0.25) { const E = rint(1, 9) * 100, F = QE * E, a = F / MEL; return num({ prompt: `An electron (charge 1.6 × 10⁻¹⁹ C, mass 9.11 × 10⁻³¹ kg) is in a uniform electric field of <b>${E} N/C</b>. What is the size of its acceleration? ${ENOTE}`, unit: 'm/s²', answer: a, hint: 'Find the force with F = qE, then use a = F / m.', solution: `F = qE = 1.6×10⁻¹⁹ × ${E} = ${sci(F)} N<br>a = F / m = ${sci(F)} / 9.11×10⁻³¹ = <b>${sci(a)} m/s²</b>`, scene: { kind: 'plates', V: `${E} N/C`, q: -1, lines: ['a = qE / m'], ans: `a = ${sci(a)} m/s²` } }); }
+  if (q < 0.5) {
+    let a, b, r, qs, F; do { a = rint(6, 12); b = rint(1, 4); r = rstep(0.1, 0.3, 0.05); qs = (a - b) / 2; F = KE * qs * qs * 1e-12 / (r * r); } while (F < 0.3);
+    return num({ prompt: `Two identical metal spheres carry <b>+${a} μC</b> and <b>−${b} μC</b>. They are touched together, then placed <b>${r} m</b> apart. What force acts between them now? ${KNOTE}`, unit: 'N', answer: F, hint: 'Touching shares the total charge equally between the spheres. Then use Coulomb’s law.', solution: `each sphere: (${a} − ${b}) / 2 = ${fmt(qs)} μC<br>F = 9.0×10⁹ × (${fmt(qs)}×10⁻⁶)² / ${r}² = <b>${fmt(F)} N</b> (repulsive)`, scene: { kind: 'charges', q1: 1, q2: 1, l1: 'after touching', l2: 'after touching', rl: `${r} m`, lines: ['q = (q₁ + q₂) / 2'], ans: `F = ${fmt(F)} N` } });
+  }
+  if (q < 0.75) {
+    let q1, q2, q3, r, F1, F3; do { q1 = rint(5, 9); q3 = rint(1, 4); q2 = rint(1, 5); r = rstep(0.1, 0.5, 0.1); F1 = KE * q1 * q2 * 1e-12 / (r * r); F3 = KE * q3 * q2 * 1e-12 / (r * r); } while (F1 - F3 < 0.3);
+    return num({ prompt: `Three charges sit in a line. <b>+${q1} μC</b> is on the left, <b>+${q3} μC</b> is on the right, and <b>+${q2} μC</b> is exactly in the middle, <b>${r} m</b> from each. What is the size of the net force on the middle charge? ${KNOTE}`, unit: 'N', answer: F1 - F3, hint: 'Find the force from each outer charge. They push the middle charge in opposite directions, so subtract.', solution: `from the left: 9.0×10⁹ × ${q1}×10⁻⁶ × ${q2}×10⁻⁶ / ${r}² = ${fmt(F1)} N (pushes right)<br>from the right: 9.0×10⁹ × ${q3}×10⁻⁶ × ${q2}×10⁻⁶ / ${r}² = ${fmt(F3)} N (pushes left)<br>net = ${fmt(F1)} − ${fmt(F3)} = <b>${fmt(F1 - F3)} N</b> to the right`, scene: { kind: 'charges', q1, q2: q3, mid: q2, l1: `+${q1} μC`, l2: `+${q3} μC`, lm: `+${q2} μC`, rl: `${r} m`, lines: ['F = kq₁q₂ / r²'], ans: `net F = ${fmt(F1 - F3)} N` } });
+  }
+  const V = rint(1, 20) * 100, v = Math.sqrt(2 * QE * V / MEL);
+  return num({ prompt: `An electron starts at rest and is accelerated through <b>${V} V</b>. What speed does it reach? (e = 1.6 × 10⁻¹⁹ C, m = 9.11 × 10⁻³¹ kg) ${ENOTE}`, unit: 'm/s', answer: v, hint: 'The energy it gains is qV, and that becomes kinetic energy: qV = ½mv².', solution: `v = √(2qV / m) = √(2 × 1.6×10⁻¹⁹ × ${V} / 9.11×10⁻³¹) = <b>${sci(v)} m/s</b>`, scene: { kind: 'plates', V: `${V} V`, q: -1, lines: ['qV = ½mv²'], ans: `v = ${sci(v)} m/s` } });
+};
+
+GEN.mag = d => {
+  const t = tier(d);
+  if (R() < 0.22) return mcFrom('mag', t);
+  if (t === 0) {
+    if (R() < 0.55) {
+      let B, I, L, F; do { B = rstep(0.1, 2, 0.1); I = rint(1, 20); L = rstep(0.1, 2, 0.1); F = B * I * L; } while (F < 0.3);
+      return num({ prompt: `A <b>${L} m</b> wire carrying <b>${I} A</b> lies at right angles to a <b>${B} T</b> magnetic field. What force acts on it?`, unit: 'N', answer: F, hint: 'At right angles, F = BIL.', solution: `F = BIL = ${B} × ${I} × ${L} = <b>${fmt(F)} N</b>`, scene: { kind: 'bfield', mode: 'wire', lines: [`B = ${B} T`, `I = ${I} A`], ans: `F = ${fmt(F)} N` } });
+    }
+    const B = rstep(0.3, 2, 0.1), I = rint(2, 10), L = rstep(0.2, 1.5, 0.1), F = +(B * I * L).toFixed(4);
+    return num({ prompt: `A <b>${L} m</b> wire carries <b>${I} A</b> at right angles to a magnetic field and feels a force of <b>${fmt(F, 3)} N</b>. How strong is the field?`, unit: 'T', answer: B, hint: 'Rearrange F = BIL to get B = F / (IL).', solution: `B = F / (IL) = ${fmt(F, 3)} / (${I} × ${L}) = <b>${fmt(B)} T</b>`, scene: { kind: 'bfield', mode: 'wire', lines: [`I = ${I} A`, `F = ${fmt(F, 3)} N`], ans: `B = ${fmt(B)} T` } });
+  }
+  if (t === 1) {
+    const q = R();
+    if (q < 0.33) { const v = rint(1, 9), B = rstep(0.1, 2, 0.1), F = QE * v * 1e5 * B; return num({ prompt: `A proton (charge 1.6 × 10⁻¹⁹ C) moves at <b>${v} × 10⁵ m/s</b> at right angles to a <b>${B} T</b> magnetic field. What force acts on it? ${ENOTE}`, unit: 'N', answer: F, hint: 'F = qvB.', solution: `F = qvB = 1.6×10⁻¹⁹ × ${v}×10⁵ × ${B} = <b>${sci(F)} N</b>`, scene: { kind: 'bfield', mode: 'orbit', lines: [`B = ${B} T`, 'F = qvB'], ans: `F = ${sci(F)} N` } }); }
+    if (q < 0.66) {
+      let B, I, L, th, F; do { B = rstep(0.2, 2, 0.1); I = rint(2, 20); L = rstep(0.2, 2, 0.1); th = pick([30, 45, 60]); F = B * I * L * Math.sin(rad(th)); } while (F < 0.3);
+      return num({ prompt: `A <b>${L} m</b> wire carries <b>${I} A</b> at <b>${th}°</b> to a <b>${B} T</b> magnetic field. What force acts on it?`, unit: 'N', answer: F, hint: 'Only the part of the wire across the field counts: F = BIL sinθ.', solution: `F = BIL sinθ = ${B} × ${I} × ${L} × sin${th}° = <b>${fmt(F)} N</b>`, scene: { kind: 'bfield', mode: 'angle', th, lines: [`B = ${B} T`, `I = ${I} A`], ans: `F = ${fmt(F)} N` } });
+    }
+    const I = rint(2, 50), r = rint(1, 20), B = 20 * I / r;
+    return num({ prompt: `A long straight wire carries <b>${I} A</b>. How strong is the magnetic field <b>${r} cm</b> from it, in microtesla? (μ₀ = 4π × 10⁻⁷ T·m/A)`, unit: 'μT', answer: B, hint: 'B = μ₀I / (2πr), with r in metres. Then 1 μT = 10⁻⁶ T.', solution: `B = 4π×10⁻⁷ × ${I} / (2π × ${r / 100}) = ${sci(B * 1e-6)} T = <b>${fmt(B)} μT</b>`, scene: { kind: 'bfield', mode: 'around', rl: `${r} cm`, lines: [`I = ${I} A`, 'B = μ₀I / (2πr)'], ans: `B = ${fmt(B)} μT` } });
+  }
+  const q = R();
+  if (q < 0.28) {
+    const el = R() < 0.5; let v, B, r;
+    do { v = rint(1, 9); B = el ? rint(1, 20) : rstep(0.1, 2, 0.1); r = el ? MEL * v * 1e7 / (QE * B * 1e-3) * 100 : MPR * v * 1e6 / (QE * B) * 100; } while (r < 0.3);
+    const who = el ? 'An electron (mass 9.11 × 10⁻³¹ kg' : 'A proton (mass 1.67 × 10⁻²⁷ kg', vs = `${v} × 10${el ? '⁷' : '⁶'} m/s`, Bs = el ? `${B} mT` : `${B} T`;
+    return num({ prompt: `${who}, charge 1.6 × 10⁻¹⁹ C) moves at <b>${vs}</b> at right angles to a <b>${Bs}</b> magnetic field. What is the radius of its circular path, in centimetres?`, unit: 'cm', answer: r, hint: 'The magnetic force is the centripetal force: qvB = mv² / r, so r = mv / (qB).', solution: `r = mv / (qB) = ${el ? '9.11×10⁻³¹' : '1.67×10⁻²⁷'} × ${v}×10${el ? '⁷' : '⁶'} / (1.6×10⁻¹⁹ × ${el ? `${B}×10⁻³` : B}) = ${fmt(r / 100, 4)} m = <b>${fmt(r)} cm</b>`, scene: { kind: 'bfield', mode: 'orbit', neg: el, lines: [`B = ${Bs}`, 'r = mv / (qB)'], ans: `r = ${fmt(r)} cm` } });
+  }
+  if (q < 0.52) {
+    let N, L, I, B; do { N = rint(2, 20) * 100; L = rint(10, 50); I = rstep(0.5, 5, 0.5); B = MU0 * N / (L / 100) * I * 1000; } while (B < 0.3);
+    return num({ prompt: `A solenoid has <b>${N} turns</b> wound evenly along <b>${L} cm</b> and carries <b>${I} A</b>. How strong is the field inside it, in millitesla? (μ₀ = 4π × 10⁻⁷ T·m/A)`, unit: 'mT', answer: B, hint: 'B = μ₀nI, where n is turns per metre: n = N / L.', solution: `n = ${N} / ${L / 100} = ${fmt(N / (L / 100))} turns/m<br>B = 4π×10⁻⁷ × ${fmt(N / (L / 100))} × ${I} = ${sci(B / 1000)} T = <b>${fmt(B)} mT</b>`, scene: { kind: 'bfield', mode: 'solenoid', nl: `${N} turns`, ll: `${L} cm`, lines: [`I = ${I} A`, 'B = μ₀nI'], ans: `B = ${fmt(B)} mT` } });
+  }
+  if (q < 0.76) { const E = rint(1, 9) * 1e4, B = rstep(0.1, 0.9, 0.1), v = E / B; return num({ prompt: `In a velocity selector, an electric field of <b>${sci(E, 2)} V/m</b> is crossed with a <b>${B} T</b> magnetic field. Ions of one speed pass straight through. What speed?`, unit: 'm/s', answer: v, hint: 'The ions go straight when the electric and magnetic forces balance: qE = qvB.', solution: `qE = qvB → v = E / B = ${sci(E, 2)} / ${B} = <b>${fmt(v)} m/s</b>`, scene: { kind: 'bfield', mode: 'straight', lines: [`B = ${B} T`, 'qE = qvB'], ans: `v = ${fmt(v)} m/s` } }); }
+  let m, L, B, I; do { m = rint(5, 50); L = rstep(0.2, 1, 0.1); B = rstep(0.1, 0.8, 0.1); I = m / 1000 * G / (B * L); } while (I < 0.3);
+  return num({ prompt: `A horizontal wire <b>${L} m</b> long has a mass of <b>${m} g</b>. It sits at right angles to a horizontal <b>${B} T</b> magnetic field. What current makes the magnetic force exactly support its weight?`, unit: 'A', answer: I, hint: 'Set the magnetic force equal to the weight: BIL = mg. Convert grams to kilograms.', solution: `BIL = mg → I = mg / (BL) = ${m / 1000} × 9.8 / (${B} × ${L}) = <b>${fmt(I)} A</b>`, scene: { kind: 'bfield', mode: 'wire', mg: true, still: true, lines: [`B = ${B} T`, 'BIL = mg'], ans: `I = ${fmt(I)} A` } });
+};
+
+GEN.induct = d => {
+  const t = tier(d);
+  if (R() < 0.22) return mcFrom('induct', t);
+  if (t === 0) {
+    if (R() < 0.55) { const Np = rint(1, 10) * 100, Ns = rint(1, 20) * 50, Vp = pick([12, 24, 120, 230, 240]), Vs = Vp * Ns / Np; return num({ prompt: `A transformer has <b>${Np} turns</b> on its primary coil and <b>${Ns} turns</b> on its secondary. The primary is connected to <b>${Vp} V</b> AC. What is the secondary voltage?`, unit: 'V', answer: Vs, hint: 'The voltages are in the same ratio as the turns: Vₛ / Vₚ = Nₛ / Nₚ.', solution: `Vₛ = Vₚ × Nₛ / Nₚ = ${Vp} × ${Ns} / ${Np} = <b>${fmt(Vs)} V</b>`, scene: { kind: 'induct', mode: 'trans', Np, Ns, left: [`${Np} turns`, `${Vp} V`], right: [`${Ns} turns`, '? V'], rightA: [`${Ns} turns`, `${fmt(Vs)} V`], lines: ['Vₛ / Vₚ = Nₛ / Nₚ'] } }); }
+    let B, A, F; do { B = rstep(0.1, 2, 0.1); A = rstep(0.1, 2, 0.1); F = B * A; } while (F < 0.3);
+    return num({ prompt: `A flat loop of area <b>${A} m²</b> faces a <b>${B} T</b> magnetic field head-on. What is the magnetic flux through it?`, unit: 'Wb', answer: F, hint: 'Facing the field head-on, Φ = BA.', solution: `Φ = BA = ${B} × ${A} = <b>${fmt(F)} Wb</b>`, scene: { kind: 'induct', mode: 'coil', lines: [`B = ${B} T`, 'Φ = BA'], ans: `Φ = ${fmt(F)} Wb` } });
+  }
+  if (t === 1) {
+    const q = R();
+    if (q < 0.28) {
+      let N, dF, dt, e; do { N = rint(1, 20) * 10; dF = rstep(0.01, 0.2, 0.01); dt = rstep(0.1, 2, 0.1); e = N * dF / dt; } while (e < 0.3);
+      return num({ prompt: `The flux through a <b>${N}-turn</b> coil changes by <b>${dF} Wb</b> in <b>${dt} s</b>. What is the size of the induced EMF?`, unit: 'V', answer: e, hint: 'Faraday’s law: ε = N ΔΦ / Δt.', solution: `ε = N ΔΦ / Δt = ${N} × ${dF} / ${dt} = <b>${fmt(e)} V</b>`, scene: { kind: 'induct', mode: 'coil', lines: [`N = ${N}`, 'ε = N ΔΦ / Δt'], ans: `ε = ${fmt(e)} V` } });
+    }
+    if (q < 0.54) {
+      let B, L, v, e; do { B = rstep(0.1, 1.5, 0.1); L = rstep(0.2, 2, 0.1); v = rint(2, 20); e = B * L * v; } while (e < 0.3);
+      return num({ prompt: `A metal rod <b>${L} m</b> long moves at <b>${v} m/s</b> straight across a <b>${B} T</b> magnetic field. What EMF appears between its ends?`, unit: 'V', answer: e, hint: 'ε = BLv.', solution: `ε = BLv = ${B} × ${L} × ${v} = <b>${fmt(e)} V</b>`, scene: { kind: 'induct', mode: 'rod', Ll: `${L} m`, lines: [`B = ${B} T`, `v = ${v} m/s`], ans: `ε = ${fmt(e)} V` } });
+    }
+    if (q < 0.77) { const V = pick([110, 120, 220, 230, 240]), pk = V * Math.SQRT2; return num({ prompt: `Mains electricity is quoted as <b>${V} V</b> rms. What is the peak voltage?`, unit: 'V', answer: pk, hint: 'V_rms = V_peak / √2, so V_peak = V_rms × √2.', solution: `V_peak = ${V} × √2 = <b>${fmt(pk)} V</b>`, scene: { kind: 'induct', mode: 'ac', lines: [`V_rms = ${V} V`], ans: `V_peak = ${fmt(pk)} V` } }); }
+    const Np = pick([1200, 2400, 4800]), Vs = pick([5, 6, 9, 12, 24]), Ns = Np * Vs / 240;
+    return num({ prompt: `A charger’s transformer takes <b>240 V</b> on a primary coil of <b>${Np} turns</b> and must give out <b>${Vs} V</b>. How many turns does the secondary need?`, unit: 'turns', answer: Ns, hint: 'Nₛ / Nₚ = Vₛ / Vₚ.', solution: `Nₛ = Nₚ × Vₛ / Vₚ = ${Np} × ${Vs} / 240 = <b>${fmt(Ns)} turns</b>`, scene: { kind: 'induct', mode: 'trans', Np, Ns, left: [`${Np} turns`, '240 V'], right: ['? turns', `${Vs} V`], rightA: [`${fmt(Ns)} turns`, `${Vs} V`], lines: ['Nₛ / Nₚ = Vₛ / Vₚ'] } });
+  }
+  const q = R();
+  if (q < 0.25) { const Vs = pick([5, 9, 12, 19]), Is = rstep(0.5, 4, 0.5), Ip = Vs * Is / 230 * 1000; return num({ prompt: `An ideal transformer runs from <b>230 V</b> mains and supplies <b>${Is} A</b> at <b>${Vs} V</b> to a laptop. What current does it draw from the mains, in milliamps?`, unit: 'mA', answer: Ip, hint: 'Power in = power out: VₚIₚ = VₛIₛ.', solution: `Iₚ = VₛIₛ / Vₚ = ${Vs} × ${Is} / 230 = ${fmt(Ip / 1000, 4)} A = <b>${fmt(Ip)} mA</b>`, scene: { kind: 'induct', mode: 'trans', Np: 230, Ns: Vs * 4, left: ['230 V', '? mA'], right: [`${Vs} V`, `${Is} A`], leftA: ['230 V', `${fmt(Ip)} mA`], lines: ['VₚIₚ = VₛIₛ'] } }); }
+  if (q < 0.5) {
+    let N, A, dB, dt, e; do { N = rint(1, 10) * 50; A = rint(10, 100); dB = rstep(0.1, 1, 0.1); dt = rstep(0.05, 0.5, 0.05); e = N * A * 1e-4 * dB / dt; } while (e < 0.3);
+    return num({ prompt: `A coil of <b>${N} turns</b>, each of area <b>${A} cm²</b>, faces a magnetic field head-on. The field rises by <b>${dB} T</b> in <b>${dt} s</b>. What EMF is induced?`, unit: 'V', answer: e, hint: 'ΔΦ = A × ΔB, with the area in m² (1 cm² = 10⁻⁴ m²). Then ε = N ΔΦ / Δt.', solution: `ΔΦ = ${A}×10⁻⁴ × ${dB} = ${fmt(A * 1e-4 * dB, 4)} Wb<br>ε = ${N} × ${fmt(A * 1e-4 * dB, 4)} / ${dt} = <b>${fmt(e)} V</b>`, scene: { kind: 'induct', mode: 'coil', lines: [`N = ${N}`, 'ε = N A ΔB / Δt'], ans: `ε = ${fmt(e)} V` } });
+  }
+  if (q < 0.75) {
+    let B, L, v, Rr, I; do { B = rstep(0.2, 1.5, 0.1); L = rstep(0.2, 1.5, 0.1); v = rint(2, 20); Rr = rint(1, 10); I = B * L * v / Rr; } while (I < 0.3);
+    return num({ prompt: `A rod <b>${L} m</b> long slides at <b>${v} m/s</b> along metal rails, straight across a <b>${B} T</b> field. The rails are joined by a <b>${Rr} Ω</b> resistor. What current flows?`, unit: 'A', answer: I, hint: 'The moving rod is the battery: ε = BLv. Then I = ε / R.', solution: `ε = BLv = ${B} × ${L} × ${v} = ${fmt(B * L * v)} V<br>I = ε / R = ${fmt(B * L * v)} / ${Rr} = <b>${fmt(I)} A</b>`, scene: { kind: 'induct', mode: 'rod', Ll: `${L} m`, Rl: `${Rr} Ω`, lines: [`B = ${B} T`, `v = ${v} m/s`], ans: `I = ${fmt(I)} A` } });
+  }
+  const P = rint(1, 10) * 100, V = pick([11, 33, 132]), Rr = rint(2, 20), I = P / V, loss = I * I * Rr;
+  return num({ prompt: `A power station sends <b>${P} kW</b> along a line at <b>${V} kV</b>. The cables have a total resistance of <b>${Rr} Ω</b>. How much power is wasted heating the cables?`, unit: 'W', answer: loss, hint: 'Find the current from P = VI (kW ÷ kV gives amps). The loss is I²R.', solution: `I = P / V = ${P}×10³ / ${V}×10³ = ${fmt(I)} A<br>loss = I²R = ${fmt(I)}² × ${Rr} = <b>${fmt(loss)} W</b>`, scene: { kind: 'induct', mode: 'line', Rl: `${Rr} Ω`, lines: [`${P} kW at ${V} kV`, 'loss = I²R'], ans: `loss = ${fmt(loss)} W` } });
+};

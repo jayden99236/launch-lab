@@ -1,5 +1,6 @@
 /* ---------- constants & helpers ---------- */
 const G = 9.8, GC = 6.67e-11, ME = 5.97e24, RE = 6.37e6, CL = 3e8, VS = 343, CW = 4180, LF = 3.34e5, LV = 2.26e6, RHO = 1000, PATM = 101300;
+const KE = 9e9, QE = 1.6e-19, MU0 = 4e-7 * Math.PI, MEL = 9.11e-31, MPR = 1.67e-27;
 const $ = s => document.querySelector(s);
 const R = Math.random;
 const rint = (a, b) => Math.floor(a + R() * (b - a + 1));
@@ -32,7 +33,7 @@ const UNITS = [
   { id: 'u1', name: 'Motion and forces', desc: 'How things move and why.' },
   { id: 'u2', name: 'Circles, orbits and oscillations', desc: 'Motion that turns, swings and repeats.' },
   { id: 'u3', name: 'Matter and heat', desc: 'Fluids, pressure and thermal energy.' },
-  { id: 'u4', name: 'Electricity and light', desc: 'Circuits, waves, rays and lenses.' },
+  { id: 'u4', name: 'Electricity, magnetism and light', desc: 'Circuits, charges, fields, induction and lenses.' },
 ];
 const TOPICS = [
   { id: 'kin', unit: 'u1', req: [], name: 'Kinematics', sym: 'v = u + at', blurb: 'Speed, acceleration and stopping distances.' },
@@ -47,6 +48,9 @@ const TOPICS = [
   { id: 'fluids', unit: 'u3', req: ['force'], name: 'Pressure and fluids', sym: 'P = ρgh', blurb: 'Depth, hydraulics and buoyancy.' },
   { id: 'thermal', unit: 'u3', req: ['energy'], name: 'Heat and temperature', sym: 'Q = mcΔT', blurb: 'Heating, melting, mixing and gas laws.' },
   { id: 'elec', unit: 'u4', req: ['energy'], name: 'Circuits', sym: 'V = IR', blurb: 'Current, resistance, power and cost.' },
+  { id: 'estat', unit: 'u4', req: ['elec'], name: 'Electrostatics', sym: 'F = kq₁q₂ / r²', blurb: 'Charge, Coulomb’s law and electric fields.' },
+  { id: 'mag', unit: 'u4', req: ['estat'], name: 'Magnetism', sym: 'F = BIL', blurb: 'Magnetic fields, forces on wires and moving charges.' },
+  { id: 'induct', unit: 'u4', req: ['mag'], name: 'Induction', sym: 'ε = −N ΔΦ / Δt', blurb: 'Faraday’s law, generators and transformers.' },
   { id: 'optics', unit: 'u4', req: ['waves'], name: 'Light and optics', sym: 'n₁sinθ₁ = n₂sinθ₂', blurb: 'Reflection, refraction and lenses.' },
 ];
 const tname = id => TOPICS.find(t => t.id === id).name;
@@ -54,14 +58,14 @@ const tname = id => TOPICS.find(t => t.id === id).name;
 /* ---------- grade placement ----------
    Starting skill per station for a typical student at the end of each grade.
    Ratings: under 3.5 = warm-up problems, 3.5–6.5 = core, above 6.5 = challenge. 4 opens dependent stations.
-   Order: kin, force, energy, proj, mom, circ, grav, shm, waves, fluids, thermal, elec, optics */
-const GRADE_ORDER = ['kin', 'force', 'energy', 'proj', 'mom', 'circ', 'grav', 'shm', 'waves', 'fluids', 'thermal', 'elec', 'optics'];
+   Order: kin, force, energy, proj, mom, circ, grav, shm, waves, fluids, thermal, elec, optics, estat, mag, induct */
+const GRADE_ORDER = ['kin', 'force', 'energy', 'proj', 'mom', 'circ', 'grav', 'shm', 'waves', 'fluids', 'thermal', 'elec', 'optics', 'estat', 'mag', 'induct'];
 const GRADES = [
-  { g: 8, title: 'Grade 8', desc: 'Speed and distance, pushes and pulls, simple circuits, heat and light basics.', r: [4.0, 3.0, 2.5, 2.0, 1.5, 1.0, 1.0, 1.0, 2.0, 2.5, 2.5, 2.5, 1.5] },
-  { g: 9, title: 'Grade 9', desc: 'Acceleration, Newton’s laws, kinetic and potential energy, Ohm’s law, v = fλ.', r: [4.5, 4.0, 3.5, 2.5, 2.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 2.0] },
-  { g: 10, title: 'Grade 10', desc: 'Equations of motion, friction, energy conservation, momentum, pressure, Q = mcΔT, series and parallel.', r: [5.5, 5.0, 4.5, 4.0, 4.0, 2.5, 2.0, 2.5, 4.0, 4.5, 4.5, 4.5, 3.0] },
-  { g: 11, title: 'Grade 11', desc: 'Projectiles, impulse, circular motion, oscillations, sound, gas laws, refraction and lenses.', r: [6.0, 5.5, 5.5, 5.0, 5.0, 4.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 4.5] },
-  { g: 12, title: 'Grade 12', desc: 'Gravitation and orbits, SHM in depth, standing waves, multi-step problems across every topic.', r: [6.5, 6.5, 6.0, 6.0, 6.0, 5.0, 4.5, 5.0, 5.5, 5.5, 5.5, 5.5, 5.0] },
+  { g: 8, title: 'Grade 8', desc: 'Speed and distance, pushes and pulls, simple circuits, heat and light basics.', r: [4.0, 3.0, 2.5, 2.0, 1.5, 1.0, 1.0, 1.0, 2.0, 2.5, 2.5, 2.5, 1.5, 1.5, 1.5, 1.0] },
+  { g: 9, title: 'Grade 9', desc: 'Acceleration, Newton’s laws, kinetic and potential energy, Ohm’s law, v = fλ.', r: [4.5, 4.0, 3.5, 2.5, 2.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 2.0, 2.0, 2.0, 1.0] },
+  { g: 10, title: 'Grade 10', desc: 'Equations of motion, friction, energy conservation, momentum, pressure, Q = mcΔT, series and parallel, static charge.', r: [5.5, 5.0, 4.5, 4.0, 4.0, 2.5, 2.0, 2.5, 4.0, 4.5, 4.5, 4.5, 3.0, 4.0, 3.0, 2.0] },
+  { g: 11, title: 'Grade 11', desc: 'Projectiles, impulse, circular motion, oscillations, sound, gas laws, refraction and lenses, Coulomb’s law, magnetic forces.', r: [6.0, 5.5, 5.5, 5.0, 5.0, 4.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 4.5, 4.5, 4.0, 3.5] },
+  { g: 12, title: 'Grade 12', desc: 'Gravitation and orbits, SHM in depth, standing waves, electromagnetic induction, multi-step problems across every topic.', r: [6.5, 6.5, 6.0, 6.0, 6.0, 5.0, 4.5, 5.0, 5.5, 5.5, 5.5, 5.5, 5.0, 5.5, 5.0, 4.5] },
 ];
 
 /* ---------- lessons ----------
@@ -215,6 +219,46 @@ const LESSONS = {
     ex: { q: 'A 12 V battery drives current through 4 Ω and 8 Ω resistors in series. Find the current and the voltage across the 8 Ω resistor.', steps: ['Total resistance: 4 + 8 = 12 Ω.', 'Current: I = V / R = 12 / 12 = 1 A.', 'Voltage across 8 Ω: V = IR = 1 × 8 = 8 V.'] },
     traps: ['Adding parallel resistances as if they were in series.', 'Forgetting to flip 1/R at the end.', 'Mixing watts and kilowatts when working out energy costs.'],
   },
+  estat: {
+    intro: 'Charge comes in two kinds, positive and negative. Charges push and pull on each other without touching, and that force holds every atom together.',
+    sections: [
+      ['Charge', 'Charge is measured in coulombs (C). An electron carries −1.6 × 10⁻¹⁹ C and a proton +1.6 × 10⁻¹⁹ C. Like charges repel and unlike charges attract. Rubbing a balloon moves electrons from one object to the other; it never creates charge. Any charge is a whole number of electron charges: <i class="v">Q = ne</i>.'],
+      ['Coulomb’s law', 'The force between two point charges is <i class="v">F = kq₁q₂ / r²</i>, with k = 9.0 × 10⁹ N·m²/C². Double the distance and the force drops to a quarter. Everyday charges are small, so expect microcoulombs: 1 μC = 10⁻⁶ C.'],
+      ['Electric field', 'A field describes the force a charge would feel at each point: <i class="v">E = F / q</i>, in N/C. Its direction is the direction of the force on a positive charge. Around a point charge, <i class="v">E = kQ / r²</i>. Field lines leave positive charges and end on negative ones.'],
+      ['Voltage and uniform fields', 'Potential difference is the energy per coulomb: <i class="v">W = qV</i>. Between two parallel plates the field is the same everywhere: <i class="v">E = V / d</i>. A charge q between the plates feels a steady force <i class="v">F = qE</i>.'],
+      ['Sharing charge', 'When two identical metal spheres touch, the total charge spreads evenly. Each ends up with <i class="v">(q₁ + q₂) / 2</i>. Keep the signs when you add.'],
+    ],
+    eqs: [['Q = ne', 'charge comes in steps of e = 1.6 × 10⁻¹⁹ C'], ['F = kq₁q₂ / r²', 'Coulomb’s law (k = 9.0 × 10⁹)'], ['E = F / q', 'electric field'], ['E = kQ / r²', 'field of a point charge'], ['E = V / d', 'uniform field between plates'], ['W = qV', 'work done on a charge']],
+    ex: { q: 'Charges of +2 μC and −3 μC are 0.30 m apart. Find the force between them.', steps: ['Convert: 2 × 10⁻⁶ C and 3 × 10⁻⁶ C.', 'F = kq₁q₂ / r² = 9.0×10⁹ × 2×10⁻⁶ × 3×10⁻⁶ / 0.30².', 'F = 0.054 / 0.09 = 0.60 N. The signs differ, so the charges attract.'] },
+    traps: ['Leaving charges in μC or nC instead of coulombs.', 'Forgetting to square the distance, or leaving it in centimetres.', 'Feeding the signs into Coulomb’s law. Work out the size first, then decide whether the charges attract or repel.'],
+  },
+  mag: {
+    intro: 'Magnetism and electric current are two sides of one thing. Moving charge makes a magnetic field, and a magnetic field pushes on moving charge.',
+    sections: [
+      ['Magnets and fields', 'Every magnet has a north and a south pole. Like poles repel and unlike poles attract. Field lines run from north to south outside the magnet. Field strength B is measured in tesla (T): the Earth’s field is about 5 × 10⁻⁵ T, and an MRI scanner about 2 T.'],
+      ['Fields from currents', 'A current-carrying wire is circled by a magnetic field. Point your right thumb along the current and your fingers curl the way the field goes. At distance r from a long wire, <i class="v">B = μ₀I / (2πr)</i>, with μ₀ = 4π × 10⁻⁷ T·m/A. Inside a long coil (a solenoid) the field is uniform: <i class="v">B = μ₀nI</i>, where n is the number of turns per metre.'],
+      ['Force on a wire', 'A wire of length L carrying current I in a field B feels <i class="v">F = BIL sinθ</i>, where θ is the angle between the wire and the field. The force is largest at right angles and zero when the wire runs along the field. This force turns every electric motor.'],
+      ['Force on a moving charge', 'A charge q moving at speed v feels <i class="v">F = qvB sinθ</i>. The force is always at right angles to the velocity, so it changes the direction of motion and never the speed.'],
+      ['Circular paths', 'A charge moving at right angles to a uniform field goes round in a circle, with the magnetic force as the centripetal force: qvB = mv²/r. So <i class="v">r = mv / (qB)</i>. Mass spectrometers use this to sort atoms by mass.'],
+    ],
+    eqs: [['F = BIL sinθ', 'force on a current-carrying wire'], ['F = qvB sinθ', 'force on a moving charge'], ['r = mv / (qB)', 'radius of a charge’s circular path'], ['B = μ₀I / (2πr)', 'field around a long wire (μ₀ = 4π × 10⁻⁷)'], ['B = μ₀nI', 'field inside a solenoid (n = turns per metre)']],
+    ex: { q: 'A 0.25 m wire carries 4.0 A at right angles to a 0.30 T field. Find the force on it.', steps: ['The wire is at 90° to the field, so sinθ = 1.', 'F = BIL = 0.30 × 4.0 × 0.25 = 0.30 N.'] },
+    traps: ['Expecting a force when the current or the motion is parallel to the field. It is zero.', 'Thinking a magnetic field speeds a charge up. It only turns it.', 'Leaving lengths in centimetres or fields in millitesla.'],
+  },
+  induct: {
+    intro: 'A changing magnetic field makes a voltage. That one idea runs every generator, transformer and wireless charger.',
+    sections: [
+      ['Magnetic flux', 'Flux measures how much field passes through a loop: <i class="v">Φ = BA cosθ</i>, in webers (Wb). θ is the angle between the field and the line at right angles to the loop, so a loop facing the field head-on catches the most.'],
+      ['Faraday’s law', 'Whenever the flux through a coil changes, a voltage (an EMF) appears across it: <i class="v">ε = −N ΔΦ / Δt</i>. A faster change or more turns gives a bigger EMF. A steady flux gives nothing.'],
+      ['Lenz’s law', 'The minus sign says the induced current always opposes the change that caused it. Push a north pole toward a coil and the coil’s near end becomes a north pole and pushes back. If it helped instead, you would get energy for free.'],
+      ['Moving conductors', 'A rod of length L moving at speed v straight across a field has an EMF between its ends: <i class="v">ε = BLv</i>. Connect it to a circuit and current flows: <i class="v">I = ε / R</i>.'],
+      ['Transformers', 'Two coils share an iron core. An alternating current in the primary keeps the flux changing, which induces a voltage in the secondary: <i class="v">Vₛ / Vₚ = Nₛ / Nₚ</i>. An ideal transformer passes on all the power: <i class="v">VₚIₚ = VₛIₛ</i>. Power lines run at very high voltage so the current, and the I²R heating, stays small.'],
+      ['Alternating current', 'A coil spinning in a field makes a voltage that swings back and forth. The quoted mains voltage is the rms value, the steady voltage that would give the same heating: <i class="v">V_rms = V_peak / √2</i>.'],
+    ],
+    eqs: [['Φ = BA cosθ', 'magnetic flux'], ['ε = −N ΔΦ / Δt', 'Faraday’s law'], ['ε = BLv', 'rod moving across a field'], ['Vₛ / Vₚ = Nₛ / Nₚ', 'transformer turns ratio'], ['VₚIₚ = VₛIₛ', 'ideal transformer'], ['V_rms = V_peak / √2', 'alternating voltage']],
+    ex: { q: 'The flux through a 200-turn coil rises from 0.010 Wb to 0.040 Wb in 0.50 s. Find the EMF.', steps: ['ΔΦ = 0.040 − 0.010 = 0.030 Wb.', 'ε = N ΔΦ / Δt = 200 × 0.030 / 0.50 = 12 V.'] },
+    traps: ['Expecting an EMF from a steady field. Only a changing flux induces one.', 'Forgetting to multiply by the number of turns.', 'Turning the transformer ratio upside down. More turns means more voltage.'],
+  },
   optics: {
     intro: 'Light travels in straight lines until it meets a surface. Then it reflects, refracts, or both.',
     sections: [
@@ -342,6 +386,37 @@ const MC = {
     { t: 2, q: 'Two bulbs rated 60 W and 100 W for the same voltage. Which has the higher resistance?', o: ['The 60 W bulb', 'The 100 W bulb', 'They are equal', 'It depends on the current'], h: 'P = V²/R at fixed V.', w: 'R = V²/P, so the smaller power means the larger resistance.' },
     { t: 2, q: 'If the current through a resistor doubles, the power it uses becomes…', o: ['4 times as large', '2 times as large', 'Unchanged', 'Half as large'], h: 'P = I²R.', w: 'P ∝ I², and 2² = 4.' },
   ],
+  estat: [
+    { t: 0, q: 'Two positively charged balloons are brought close together. They…', o: ['Repel each other', 'Attract each other', 'Do nothing', 'Attract, then repel'], h: 'Like charges…', w: 'Like charges repel. Unlike charges attract.' },
+    { t: 0, q: 'A plastic rod rubbed with a cloth becomes negatively charged because it has…', o: ['Gained electrons', 'Lost electrons', 'Gained protons', 'Lost protons'], h: 'Only one kind of particle moves easily between objects.', w: 'Protons stay locked in the nucleus. Rubbing moves electrons onto the rod, giving it extra negative charge.' },
+    { t: 0, q: 'Electric charge is measured in…', o: ['Coulombs', 'Amperes', 'Volts', 'Newtons'], h: 'One ampere is one of these per second.', w: 'Charge is measured in coulombs (C). An ampere is one coulomb per second.' },
+    { t: 1, q: 'The distance between two charges is doubled. The force between them becomes…', o: ['One quarter as large', 'Half as large', 'Twice as large', 'Four times as large'], h: 'F ∝ 1 / r².', w: 'Coulomb’s law is an inverse-square law: 1 / 2² = ¼.' },
+    { t: 1, q: 'The direction of an electric field at a point is the direction of the force on…', o: ['A positive charge placed there', 'A negative charge placed there', 'Any charge placed there', 'A neutral object placed there'], h: 'It is a convention, and it matches the way field lines leave positive charges.', w: 'The field direction is defined by the force on a positive test charge. A negative charge is pushed the opposite way.' },
+    { t: 2, q: 'Both charges in a pair are doubled, and the distance between them is doubled too. The force…', o: ['Stays the same', 'Doubles', 'Halves', 'Becomes four times as large'], h: 'F ∝ q₁q₂ / r². Work out each factor.', w: 'The charges give 2 × 2 = 4 on top and the distance gives 2² = 4 underneath, so the force is unchanged.' },
+    { t: 2, q: 'An electron and a proton sit in the same uniform electric field. Compared with the proton, the electron feels…', o: ['An equal force in the opposite direction', 'A much smaller force', 'A much larger force', 'An equal force in the same direction'], h: 'F = qE. Compare the charges, not the masses.', w: 'Their charges are equal in size and opposite in sign, so the forces are equal and opposite. The electron accelerates far more because it is so much lighter.' },
+    { t: 2, q: 'Exactly midway between two equal positive charges, the electric field is…', o: ['Zero', 'Twice the field of one charge', 'Pointing toward both charges', 'Impossible to define'], h: 'Each charge pushes a positive test charge away from itself.', w: 'The two fields are equal in size and opposite in direction at the midpoint, so they cancel.' },
+  ],
+  mag: [
+    { t: 0, q: 'The north poles of two bar magnets are pushed together. They…', o: ['Repel', 'Attract', 'Do nothing', 'Swap poles'], h: 'Like poles…', w: 'Like poles repel and unlike poles attract.' },
+    { t: 0, q: 'Magnetic field strength is measured in…', o: ['Tesla', 'Volts', 'Coulombs', 'Ohms'], h: 'It is named after an inventor who worked on alternating current.', w: 'Field strength B is measured in tesla (T).' },
+    { t: 0, q: 'Which of these materials is strongly attracted to a magnet?', o: ['Iron', 'Copper', 'Aluminium', 'Plastic'], h: 'Think of what a fridge door is made of.', w: 'Iron, nickel and cobalt are strongly magnetic. Copper and aluminium are metals, but a magnet barely affects them.' },
+    { t: 1, q: 'A wire carrying a current lies parallel to a magnetic field. The magnetic force on it is…', o: ['Zero', 'At its maximum', 'Half its maximum', 'Directed along the wire'], h: 'F = BIL sinθ. What is θ here?', w: 'θ = 0, so sinθ = 0 and there is no force. The force is largest when the wire is at right angles to the field.' },
+    { t: 1, q: 'The magnetic field lines around a long straight current-carrying wire are…', o: ['Circles around the wire', 'Straight lines along the wire', 'Straight lines pointing away from the wire', 'Spirals along the wire'], h: 'Use the right-hand grip rule.', w: 'Thumb along the current, fingers curl around the wire: the field forms circles centred on it.' },
+    { t: 1, q: 'Outside a bar magnet, the field lines run…', o: ['From the north pole to the south pole', 'From the south pole to the north pole', 'In circles around the middle', 'Straight out from both poles'], h: 'A compass needle’s north end points along the field.', w: 'By convention field lines leave the north pole and enter the south pole.' },
+    { t: 2, q: 'A charged particle moves at right angles to a uniform magnetic field. Its speed…', o: ['Stays the same', 'Increases steadily', 'Decreases steadily', 'Drops to zero'], h: 'The force is always at right angles to the velocity.', w: 'A force at right angles to the motion does no work. It bends the path into a circle without changing the speed.' },
+    { t: 2, q: 'A proton circles in a uniform magnetic field. If its speed doubles, the radius of its path…', o: ['Doubles', 'Halves', 'Stays the same', 'Becomes four times as large'], h: 'r = mv / (qB).', w: 'r is proportional to v, so twice the speed gives twice the radius.' },
+    { t: 2, q: 'An electron sits at rest in a strong magnetic field. The magnetic force on it is…', o: ['Zero', 'Toward the north pole', 'Toward the south pole', 'At right angles to the field'], h: 'F = qvB. What is v?', w: 'A magnetic field only pushes on moving charge. With v = 0 the force is zero.' },
+  ],
+  induct: [
+    { t: 0, q: 'A magnet is held still inside a coil of wire. The induced voltage is…', o: ['Zero', 'Steady and large', 'Steadily rising', 'Alternating'], h: 'Is the flux through the coil changing?', w: 'Only a changing flux induces a voltage. A magnet at rest gives none, however strong it is.' },
+    { t: 0, q: 'Pushing a magnet into a coil faster makes the induced voltage…', o: ['Larger', 'Smaller', 'No different', 'Zero'], h: 'Faraday’s law depends on how quickly the flux changes.', w: 'ε = N ΔΦ / Δt. The same change in a shorter time gives a larger EMF.' },
+    { t: 0, q: 'A transformer is used to change the…', o: ['Voltage of an alternating supply', 'Frequency of the supply', 'Voltage of a battery', 'Total energy available'], h: 'Think of a phone charger plugged into the mains.', w: 'A transformer steps an alternating voltage up or down. It can’t change the frequency or create energy.' },
+    { t: 1, q: 'A transformer has more turns on its secondary coil than on its primary. It…', o: ['Steps the voltage up', 'Steps the voltage down', 'Leaves the voltage unchanged', 'Turns AC into DC'], h: 'Vₛ / Vₚ = Nₛ / Nₚ.', w: 'More turns on the secondary means a larger secondary voltage: a step-up transformer.' },
+    { t: 1, q: 'Transformers do not work on steady direct current because…', o: ['A steady current gives no changing flux', 'Direct current is too weak', 'The two coils would repel', 'The iron core blocks direct current'], h: 'What does Faraday’s law need?', w: 'A steady current makes a steady field. With no change in flux, nothing is induced in the secondary.' },
+    { t: 2, q: 'The north pole of a magnet is pushed toward a coil. The induced current makes the near end of the coil…', o: ['A north pole, repelling the magnet', 'A south pole, attracting the magnet', 'Unmagnetised', 'Flip between north and south'], h: 'Lenz’s law: the induced current opposes the change.', w: 'The coil opposes the approaching magnet by becoming a north pole. You have to do work to push the magnet in, and that work becomes electrical energy.' },
+    { t: 2, q: 'Power is sent along transmission lines at very high voltage in order to…', o: ['Reduce the current, and so the heating losses', 'Make the electricity travel faster', 'Increase the current', 'Avoid using transformers'], h: 'P = VI, and the lines waste I²R.', w: 'For the same power, a higher voltage means a smaller current. The I²R loss in the cables falls sharply.' },
+    { t: 2, q: 'An ideal transformer steps the voltage up by a factor of 10. The current is…', o: ['Stepped down by a factor of 10', 'Stepped up by a factor of 10', 'Unchanged', 'Stepped down by a factor of 100'], h: 'VₚIₚ = VₛIₛ.', w: 'Power in equals power out, so ten times the voltage means one tenth of the current.' },
+  ],
   optics: [
     { t: 0, q: 'Angles of incidence and reflection are measured from the…', o: ['Normal', 'Surface', 'Horizontal', 'Light source'], h: 'The normal is the line at 90° to the surface.', w: 'All ray angles in optics are measured from the normal.' },
     { t: 0, q: 'A ray hits a mirror at 30° to the normal. The reflected ray leaves at…', o: ['30° to the normal', '60° to the normal', '90° to the normal', '15° to the normal'], h: 'Angle in = angle out.', w: 'The law of reflection: θᵢ = θᵣ.' },
@@ -365,6 +440,9 @@ function defaultScene(tid) {
     fluids: { kind: 'tank', h: 3, obj: 'float', frac: 0.6, lines: ['F_b = ρVg'] },
     thermal: { kind: 'thermo', T1: 20, T2: 80, lines: ['Q = mcΔT'] },
     elec: { kind: 'circuit', V: 12, Rs: [4, 8], mode: 'series' },
+    estat: { kind: 'charges', q1: 2, q2: -3, l1: '+', l2: '−', lines: ['F = kq₁q₂ / r²'] },
+    mag: { kind: 'bfield', mode: 'orbit', lines: ['F = qvB'] },
+    induct: { kind: 'induct', mode: 'coil', lines: ['ε = −N ΔΦ / Δt'] },
     optics: { kind: 'refract', n1: 1, n2: 1.5, th1: 40 },
   }[tid];
 }

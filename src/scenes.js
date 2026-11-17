@@ -467,3 +467,189 @@ DRAW.lens = (c, W, H, p, k, rev, col) => {
   }
   readout(c, [`f = ${p.f} cm`, rev ? (di > 0 ? 'real, upside down' : 'virtual, upright') : 'image = ?'], col);
 };
+
+/* ---------- electromagnetism scenes ---------- */
+function crosses(c, x0, y0, x1, y1, col) {
+  c.strokeStyle = col.muted; c.lineWidth = 1.2; c.globalAlpha = 0.5;
+  for (let x = x0; x <= x1; x += 34) for (let y = y0; y <= y1; y += 34) { c.beginPath(); c.moveTo(x - 4, y - 4); c.lineTo(x + 4, y + 4); c.moveTo(x + 4, y - 4); c.lineTo(x - 4, y + 4); c.stroke(); }
+  c.globalAlpha = 1;
+}
+function chev(c, x, y, ang, color, s = 5) {
+  c.strokeStyle = color; c.lineWidth = 1.5; c.beginPath();
+  c.moveTo(x - s * Math.cos(ang - 0.6), y - s * Math.sin(ang - 0.6)); c.lineTo(x, y); c.lineTo(x - s * Math.cos(ang + 0.6), y - s * Math.sin(ang + 0.6)); c.stroke();
+}
+function chargeDot(c, x, y, q, label, col, r = 16) {
+  c.fillStyle = q > 0 ? col.accent : col.blue; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+  text(c, q > 0 ? '+' : '−', x, y + 1, col.bg, 'center', 700, r, col);
+  if (label) { c.font = `600 12px ${col.mono}`; const w = c.measureText(label).width + 8; c.fillStyle = col.bg; c.globalAlpha = 0.85; c.fillRect(x - w / 2, y + r + 5, w, 18); c.globalAlpha = 1; text(c, label, x, y + r + 14, col.ink, 'center', 600, 12, col); }
+}
+function coilShape(c, x, y, w, h, n, col) {
+  c.strokeStyle = col.warn; c.lineWidth = 2;
+  for (let i = 0; i < n; i++) { c.beginPath(); c.ellipse(x + w * (i + 0.5) / n, y, w / n * 0.42, h / 2, 0, 0, 7); c.stroke(); }
+}
+const emLines = (p, rev) => [...(p.lines || []), rev ? p.ans : null];
+
+DRAW.charges = (c, W, H, p, k, rev, col) => {
+  const cy = H * 0.58, g = rev ? 0.35 + 0.65 * k : 0;
+  if (p.q2 == null) {
+    const cx = W * 0.36, px = Math.min(W - 50, cx + Math.min(W, H) * 0.5), out = p.q1 > 0, r1 = Math.min(W, H) * 0.36;
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6 + 0.26, ca = Math.cos(a), sa = Math.sin(a);
+      c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(cx + 22 * ca, cy + 22 * sa); c.lineTo(cx + r1 * ca, cy + r1 * sa); c.stroke();
+      chev(c, cx + r1 * 0.65 * ca, cy + r1 * 0.65 * sa, out ? a : a + Math.PI, col.muted);
+    }
+    chargeDot(c, cx, cy, p.q1, p.l1, col);
+    if (p.rl) {
+      c.strokeStyle = col.ink; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(cx + 18, cy); c.lineTo(px, cy); c.stroke(); c.setLineDash([]);
+      text(c, p.rl, (cx + px) / 2 + 8, cy - 12, col.ink, 'center', 600, 12, col);
+      if (rev) arrow(c, px, cy, px + (out ? 1 : -1) * 44 * g, cy, col.good, 'E', col);
+      c.fillStyle = col.ink; c.beginPath(); c.arc(px, cy, 4, 0, 7); c.fill(); text(c, 'P', px, cy + 16, col.ink, 'center', 600, 12, col);
+    }
+  } else {
+    const att = p.q1 * p.q2 < 0, mid = p.mid != null, sh = rev && !mid ? k * 10 * (att ? 1 : -1) : 0;
+    const xa = W * 0.22 + sh, xb = W * 0.78 - sh, xm = W * 0.5 + (rev && mid ? k * 12 : 0);
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(xa, cy); c.lineTo(xb, cy); c.stroke(); c.setLineDash([]);
+    if (p.rl) (mid ? [0.36, 0.64] : [0.5]).forEach(f => text(c, p.rl, W * f, cy - 12, col.ink, 'center', 600, 12, col));
+    if (rev && !mid) { const s = att ? 1 : -1; arrow(c, xa, cy - 28, xa + s * 50 * g, cy - 28, col.good, 'F', col); arrow(c, xb, cy - 28, xb - s * 50 * g, cy - 28, col.good, 'F', col); }
+    if (rev && mid) arrow(c, xm, cy - 34, xm + 50 * g, cy - 34, col.good, 'net F', col);
+    chargeDot(c, xa, cy, p.q1, p.l1, col); chargeDot(c, xb, cy, p.q2, p.l2, col);
+    if (mid) chargeDot(c, xm, cy, p.mid, p.lm, col, 12);
+  }
+  readout(c, emLines(p, rev), col);
+};
+
+DRAW.plates = (c, W, H, p, k, rev, col) => {
+  const x0 = W * 0.3, x1 = W * 0.84, yt = H * 0.32, yb = H * 0.84, n = 5;
+  for (let i = 0; i < n; i++) {
+    const x = x0 + (x1 - x0) * (i + 0.5) / n;
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(x, yt + 4); c.lineTo(x, yb - 4); c.stroke();
+    chev(c, x, yt + (yb - yt) * ((0.5 + (rev ? k : 0)) % 1 * 0.8 + 0.1), Math.PI / 2, col.muted);
+  }
+  c.fillStyle = col.accent; c.fillRect(x0, yt - 6, x1 - x0, 6); c.fillStyle = col.blue; c.fillRect(x0, yb, x1 - x0, 6);
+  text(c, '+  +  +  +  +', (x0 + x1) / 2, yt - 16, col.accent, 'center', 700, 13, col);
+  text(c, '−  −  −  −  −', (x0 + x1) / 2, yb + 17, col.blue, 'center', 700, 13, col);
+  c.strokeStyle = col.ink; c.lineWidth = 1; c.beginPath(); c.moveTo(x0 - 14, yt); c.lineTo(x0 - 14, yb); c.moveTo(x0 - 19, yt); c.lineTo(x0 - 9, yt); c.moveTo(x0 - 19, yb); c.lineTo(x0 - 9, yb); c.stroke();
+  text(c, p.dl || p.V, x0 - 22, (yt + yb) / 2, col.ink, 'right', 600, 12, col);
+  if (p.dl) text(c, p.V, x1 + 6, yt - 3, col.ink, 'left', 600, 12, col);
+  if (p.q) {
+    const pos = p.q > 0, ys = pos ? yt + 20 : yb - 20, ye = pos ? yb - 16 : yt + 16, y = ys + (ye - ys) * (rev ? k * k : 0), x = (x0 + x1) / 2;
+    if (rev && k < 0.98) arrow(c, x + 22, y, x + 22, y + (pos ? 1 : -1) * 36, col.good, 'F', col);
+    chargeDot(c, x, y, p.q, null, col, 11);
+  }
+  readout(c, emLines(p, rev), col);
+};
+
+DRAW.bfield = (c, W, H, p, k, rev, col) => {
+  const m = p.mode, cx = W * 0.56, cy = H * 0.58, g = rev ? 0.35 + 0.65 * k : 0;
+  if (m === 'wire' || m === 'orbit' || m === 'straight') { crosses(c, 30, 28, W - 14, H - 26, col); text(c, '× B into the page', W - 12, H - 12, col.muted, 'right', 400, 11, col); }
+  if (m === 'wire') {
+    const y = cy - (rev && !p.still ? k * 18 : 0), xa = W * 0.14, xb = W * 0.92;
+    c.strokeStyle = col.warn; c.lineWidth = 5; c.beginPath(); c.moveTo(xa, y); c.lineTo(xb, y); c.stroke();
+    arrow(c, cx - 34, y + 16, cx + 26, y + 16, col.ink, 'I', col);
+    if (rev || p.mg) arrow(c, cx - 60, y - 5, cx - 60, y - 5 - (p.mg && !rev ? 44 : 50 * g), col.good, p.mg ? 'BIL' : 'F', col);
+    if (p.mg) arrow(c, cx + 70, y + 5, cx + 70, y + 49, col.accent, 'mg', col);
+  } else if (m === 'angle') {
+    for (let i = 0; i < 5; i++) { const y = H * 0.36 + i * (H * 0.5) / 4; c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(24, y); c.lineTo(W - 20, y); c.stroke(); chev(c, W * (0.3 + (i % 2) * 0.4), y, 0, col.muted); }
+    text(c, 'B', W - 14, H * 0.36 - 10, col.muted, 'right', 600, 12, col);
+    const a = rad(p.th), L = Math.min(W, H) * 0.34, ca = Math.cos(a), sa = Math.sin(a);
+    c.strokeStyle = col.warn; c.lineWidth = 5; c.beginPath(); c.moveTo(cx - L * ca, cy + L * sa); c.lineTo(cx + L * ca, cy - L * sa); c.stroke();
+    arrow(c, cx + L * 0.35 * ca + 12 * sa, cy - L * 0.35 * sa + 12 * ca, cx + L * 0.9 * ca + 12 * sa, cy - L * 0.9 * sa + 12 * ca, col.ink, 'I', col);
+    c.strokeStyle = col.ink; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, 30, -a, 0); c.stroke();
+    text(c, `${p.th}°`, cx + 38, cy - 12, col.ink, 'left', 600, 12, col);
+    if (rev) { c.strokeStyle = col.good; c.lineWidth = 2; c.globalAlpha = g; c.beginPath(); c.arc(cx - 44, cy + 34, 9, 0, 7); c.moveTo(cx - 50, cy + 28); c.lineTo(cx - 38, cy + 40); c.moveTo(cx - 38, cy + 28); c.lineTo(cx - 50, cy + 40); c.stroke(); c.globalAlpha = 1; text(c, 'F into the page', cx - 30, cy + 34, col.good, 'left', 600, 12, col); }
+  } else if (m === 'orbit') {
+    const Rr = Math.min(W, H) * 0.28, dir = p.neg ? -1 : 1, phi = 1.1 + dir * (rev ? k * Math.PI * 3 : 0);
+    const x = cx + Rr * Math.cos(phi), y = cy - Rr * Math.sin(phi);
+    c.strokeStyle = col.ink; c.lineWidth = 1; c.setLineDash([5, 5]); c.beginPath(); c.arc(cx, cy, Rr, 0, 7); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); text(c, 'r', (cx + x) / 2 + 8, (cy + y) / 2 + 2, col.ink, 'left', 600, 12, col);
+    arrow(c, x, y, x - dir * Math.sin(phi) * 46, y - dir * Math.cos(phi) * 46, col.blue, 'v', col);
+    arrow(c, x, y, x + (cx - x) * 0.5, y + (cy - y) * 0.5, col.good, 'F', col);
+    chargeDot(c, x, y, p.neg ? -1 : 1, null, col, 10);
+  } else if (m === 'straight') {
+    const yt = cy - 52, yb = cy + 52, xa = W * 0.2, xb = W * 0.9, x = xa + (xb - xa) * (rev ? k : 0.12);
+    c.fillStyle = col.accent; c.fillRect(xa, yt - 5, xb - xa, 5); c.fillStyle = col.blue; c.fillRect(xa, yb, xb - xa, 5);
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(xa, cy); c.lineTo(xb, cy); c.stroke(); c.setLineDash([]);
+    arrow(c, x, cy, x, cy - 38, col.good, 'qvB', col); arrow(c, x, cy, x, cy + 38, col.accent, 'qE', col);
+    if (x < xb - 50) arrow(c, x + 12, cy, x + 48, cy, col.blue, 'v', col);
+    chargeDot(c, x, cy, 1, null, col, 10);
+  } else if (m === 'around') {
+    const b = Math.min(W, H) * 0.14, px = cx + b * 1.8;
+    [1, 1.8, 2.6].forEach(f => { c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, b * f, 0, 7); c.stroke(); chev(c, cx, cy - b * f, Math.PI, col.muted); chev(c, cx, cy + b * f, 0, col.muted); });
+    c.strokeStyle = col.ink; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(cx + 10, cy); c.lineTo(px, cy); c.stroke(); c.setLineDash([]);
+    if (p.rl) text(c, p.rl, (cx + px) / 2 + 4, cy + 13, col.ink, 'center', 600, 12, col);
+    c.fillStyle = col.bg; c.strokeStyle = col.warn; c.lineWidth = 3; c.beginPath(); c.arc(cx, cy, 10, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = col.warn; c.beginPath(); c.arc(cx, cy, 3, 0, 7); c.fill();
+    text(c, 'I out of the page', cx, cy - b * 2.6 - 12, col.muted, 'center', 400, 11, col);
+    if (rev) { arrow(c, px, cy, px, cy - 46 * g, col.good, 'B', col); const a = k * Math.PI * 2; c.fillStyle = col.good; c.beginPath(); c.arc(cx + b * 1.8 * Math.cos(a), cy - b * 1.8 * Math.sin(a), 4, 0, 7); c.fill(); }
+    c.fillStyle = col.ink; c.beginPath(); c.arc(px, cy, 4, 0, 7); c.fill(); text(c, 'P', px + 10, cy + 12, col.ink, 'left', 600, 12, col);
+  } else if (m === 'solenoid') {
+    const xa = W * 0.2, w = W * 0.62, h = H * 0.34;
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(W * 0.1, cy); c.lineTo(W * 0.94, cy); c.stroke(); c.setLineDash([]);
+    if (rev) { arrow(c, W * 0.1, cy, W * 0.1 + W * 0.84 * g, cy, col.good, '', col); text(c, 'B', W * 0.94, cy - 12, col.good, 'right', 600, 12, col); for (let i = 0; i < 4; i++) chev(c, xa + w * ((i / 4 + k) % 1), cy - h * 0.22, 0, col.good), chev(c, xa + w * ((i / 4 + k + 0.1) % 1), cy + h * 0.22, 0, col.good); }
+    coilShape(c, xa, cy, w, h, 12, col);
+    if (p.nl) text(c, p.nl, xa + w / 2, cy - h / 2 - 12, col.ink, 'center', 600, 12, col);
+    if (p.ll) { c.strokeStyle = col.ink; c.lineWidth = 1; c.beginPath(); c.moveTo(xa, cy + h / 2 + 10); c.lineTo(xa + w, cy + h / 2 + 10); c.stroke(); text(c, p.ll, xa + w / 2, cy + h / 2 + 22, col.ink, 'center', 600, 12, col); }
+  }
+  readout(c, emLines(p, rev), col);
+};
+
+DRAW.induct = (c, W, H, p, k, rev, col) => {
+  const m = p.mode, cy = H * 0.58;
+  if (m === 'trans') {
+    const x0 = W * 0.34, x1 = W * 0.66, y0 = H * 0.3, y1 = H * 0.86, t = 20;
+    c.fillStyle = col.muted; c.globalAlpha = 0.3; c.fillRect(x0, y0, x1 - x0, y1 - y0); c.globalAlpha = 1;
+    c.fillStyle = col.bg; c.fillRect(x0 + t, y0 + t, x1 - x0 - 2 * t, y1 - y0 - 2 * t);
+    c.strokeStyle = col.ink; c.lineWidth = 1.5; c.strokeRect(x0, y0, x1 - x0, y1 - y0); c.strokeRect(x0 + t, y0 + t, x1 - x0 - 2 * t, y1 - y0 - 2 * t);
+    const mx = Math.max(p.Np, p.Ns), turns = n => clamp(Math.round(9 * n / mx), 2, 9);
+    const wind = (x, n, color) => { c.strokeStyle = color; c.lineWidth = 3; const ya = y0 + t + 8, yb = y1 - t - 8; for (let i = 0; i < n; i++) { const y = n === 1 ? (ya + yb) / 2 : ya + (yb - ya) * i / (n - 1); c.beginPath(); c.moveTo(x - 5, y + 3); c.lineTo(x + t + 5, y - 3); c.stroke(); } };
+    wind(x0, turns(p.Np), col.warn); wind(x1 - t, turns(p.Ns), col.blue);
+    const L = rev && p.leftA ? p.leftA : p.left, Rg = rev && p.rightA ? p.rightA : p.right;
+    L.forEach((s, i) => text(c, s, x0 - 12, cy - 9 + i * 18, s.includes('?') ? col.accent : col.ink, 'right', 600, 12, col));
+    Rg.forEach((s, i) => text(c, s, x1 + 12, cy - 9 + i * 18, s.includes('?') ? col.accent : col.ink, 'left', 600, 12, col));
+    text(c, 'primary', x0 - 12, y0 - 2, col.muted, 'right', 400, 11, col); text(c, 'secondary', x1 + 12, y0 - 2, col.muted, 'left', 400, 11, col);
+    if (rev) {
+      const a = x0 + t / 2, b = x1 - t / 2, u = y0 + t / 2, v = y1 - t / 2, per = 2 * (b - a + v - u);
+      for (let i = 0; i < 12; i++) { let d = ((i / 12) + k * 1.5) % 1 * per, x, y; if (d < b - a) { x = a + d; y = u; } else if ((d -= b - a) < v - u) { x = b; y = u + d; } else if ((d -= v - u) < b - a) { x = b - d; y = v; } else { d -= b - a; x = a; y = v - d; } c.fillStyle = col.good; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); }
+    }
+  } else if (m === 'rod') {
+    const ya = cy - 48, yb = cy + 48, xa = W * 0.16, xb = W * 0.94, x = W * 0.34 + (rev ? k * W * 0.44 : 0);
+    crosses(c, xa + 30, ya + 14, xb - 6, yb - 10, col); text(c, '× B into the page', W - 12, H - 12, col.muted, 'right', 400, 11, col);
+    c.strokeStyle = col.ink; c.lineWidth = 2.5; c.beginPath(); c.moveTo(xb, ya); c.lineTo(xa, ya); c.lineTo(xa, yb); c.lineTo(xb, yb); c.stroke();
+    c.fillStyle = col.bg; c.fillRect(xa - 9, cy - 22, 18, 44); c.strokeRect(xa - 9, cy - 22, 18, 44);
+    text(c, p.Rl || 'R', xa + 16, cy, col.ink, 'left', 600, 12, col);
+    c.strokeStyle = col.warn; c.lineWidth = 6; c.beginPath(); c.moveTo(x, ya - 9); c.lineTo(x, yb + 9); c.stroke();
+    if (p.Ll) text(c, p.Ll, x - 10, cy + 24, col.ink, 'right', 600, 12, col);
+    if (x < xb - 60) arrow(c, x + 6, cy, x + 52, cy, col.blue, 'v', col);
+    if (rev) for (let i = 0; i < 3; i++) chev(c, x - (x - xa) * ((i / 3 + k * 2) % 1), ya, Math.PI, col.good, 6), chev(c, xa + (x - xa) * ((i / 3 + k * 2) % 1), yb, 0, col.good, 6);
+  } else if (m === 'coil') {
+    const xc = W * 0.46, w = W * 0.26, h = H * 0.36, gx = W * 0.86, e = rev ? k * k * (3 - 2 * k) : 0, mx = W * 0.05 + e * (xc - W * 0.05 - 30);
+    c.strokeStyle = col.ink; c.lineWidth = 1.5; c.beginPath(); c.moveTo(xc + 6, cy + h / 2); c.lineTo(xc + 6, cy + h / 2 + 14); c.lineTo(gx, cy + h / 2 + 14); c.lineTo(gx, cy + 20); c.moveTo(xc + w - 6, cy - h / 2); c.lineTo(xc + w - 6, cy - h / 2 - 12); c.lineTo(gx, cy - h / 2 - 12); c.lineTo(gx, cy - 20); c.stroke();
+    c.fillStyle = col.blue; c.fillRect(mx, cy - 13, 34, 26); c.fillStyle = col.accent; c.fillRect(mx + 34, cy - 13, 34, 26);
+    text(c, 'S', mx + 17, cy + 1, col.bg, 'center', 700, 13, col); text(c, 'N', mx + 51, cy + 1, col.bg, 'center', 700, 13, col);
+    coilShape(c, xc, cy, w, h, 8, col);
+    if (rev && k < 0.96) arrow(c, mx + 20, cy - 26, mx + 62, cy - 26, col.blue, 'v', col);
+    c.fillStyle = col.bg; c.strokeStyle = col.ink; c.lineWidth = 2; c.beginPath(); c.arc(gx, cy, 20, 0, 7); c.fill(); c.stroke();
+    const na = (rev ? Math.sin(Math.PI * k) : 0) * 0.95;
+    c.strokeStyle = col.accent; c.lineWidth = 2.5; c.beginPath(); c.moveTo(gx, cy + 8); c.lineTo(gx + 20 * Math.sin(na), cy + 8 - 20 * Math.cos(na)); c.stroke();
+    text(c, 'meter', gx, cy + 34, col.muted, 'center', 400, 11, col);
+  } else if (m === 'ac') {
+    const xa = W * 0.12, xb = W * 0.92, A = H * 0.24, f = x => cy - A * Math.sin((x - xa) / (xb - xa) * Math.PI * 4);
+    c.strokeStyle = col.muted; c.lineWidth = 1; c.beginPath(); c.moveTo(xa, cy); c.lineTo(xb, cy); c.stroke();
+    c.setLineDash([5, 4]); c.strokeStyle = col.accent; c.beginPath(); c.moveTo(xa, cy - A); c.lineTo(xb, cy - A); c.stroke();
+    c.strokeStyle = col.good; c.beginPath(); c.moveTo(xa, cy - A * Math.SQRT1_2); c.lineTo(xb, cy - A * Math.SQRT1_2); c.stroke(); c.setLineDash([]);
+    text(c, 'peak', xb, cy - A - 10, col.accent, 'right', 600, 12, col); text(c, 'rms', xb, cy - A * Math.SQRT1_2 + 11, col.good, 'right', 600, 12, col);
+    c.strokeStyle = col.blue; c.lineWidth = 2.5; c.beginPath(); for (let x = xa; x <= xb; x += 2) x === xa ? c.moveTo(x, f(x)) : c.lineTo(x, f(x)); c.stroke();
+    if (rev) { const x = xa + (xb - xa) * k; c.fillStyle = col.ink; c.beginPath(); c.arc(x, f(x), 5, 0, 7); c.fill(); }
+  } else if (m === 'line') {
+    const xa = W * 0.2, xb = W * 0.82, yw = cy - 34, gy = cy + 46;
+    ground(c, W, gy, col);
+    c.fillStyle = col.blue; c.fillRect(xa - 44, gy - 46, 44, 46); c.fillStyle = col.warn; c.fillRect(xb, gy - 34, 40, 34);
+    text(c, 'station', xa - 22, gy + 12, col.muted, 'center', 400, 11, col); text(c, 'town', xb + 20, gy + 12, col.muted, 'center', 400, 11, col);
+    c.strokeStyle = col.ink; c.lineWidth = 2;
+    for (const f of [0.33, 0.67]) { const x = xa + (xb - xa) * f; c.beginPath(); c.moveTo(x - 12, gy); c.lineTo(x, yw - 6); c.lineTo(x + 12, gy); c.moveTo(x - 14, yw); c.lineTo(x + 14, yw); c.stroke(); }
+    c.lineWidth = 1.5; c.beginPath(); c.moveTo(xa, gy - 40); c.lineTo(xa + (xb - xa) * 0.33, yw); c.lineTo(xa + (xb - xa) * 0.67, yw); c.lineTo(xb, gy - 30); c.stroke();
+    if (p.Rl) text(c, `cables: ${p.Rl}`, (xa + xb) / 2, yw - 14, col.ink, 'center', 600, 12, col);
+    if (rev) for (let i = 0; i < 5; i++) { const x = xa + (xb - xa) * (0.33 + 0.34 * ((i / 5 + k * 2) % 1)); c.fillStyle = col.accent; c.beginPath(); c.arc(x, yw, 3.5, 0, 7); c.fill(); }
+  }
+  readout(c, emLines(p, rev), col);
+};
